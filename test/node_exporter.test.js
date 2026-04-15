@@ -26,3 +26,11 @@ test('parseMetrics: network byte counters exclude loopback', () => {
   assert.equal(result.netRxBytes, 1_234_567_000);
   assert.equal(result.netTxBytes, 567_800_000);
 });
+
+test('parseMetrics: cpu seconds (idle + total across all cores and modes)', () => {
+  const result = parseMetrics(fixture);
+  // idle = 12345.67 + 12400.12
+  assert.equal(result.cpuIdleSeconds.toFixed(2), '24745.79');
+  // total = idle + iowait + system + user = 24745.79 + 18.6 + 396.0 + 996.2 = 26156.59
+  assert.equal(result.cpuTotalSeconds.toFixed(2), '26156.59');
+});
