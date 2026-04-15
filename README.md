@@ -99,6 +99,35 @@ A background rollup runs every 5 minutes: data aging out of a tier is averaged i
 
 `data/` is in `.gitignore` and backed by SQLite WAL — safe across restarts, no migration needed when the schema is unchanged.
 
+## Alerting (ntfy)
+
+Push notifications to an [ntfy](https://ntfy.sh) topic when a rule fires or resolves. Add an `alerts` block to `config.js`:
+
+```js
+alerts: {
+  ntfy: {
+    url: "https://ntfy.sh/your-private-topic",
+    firingPriority: "high",
+    resolvedPriority: "default",
+    firingTags: ["warning"],
+    resolvedTags: ["white_check_mark"],
+  },
+  defaults: {
+    cpuPct: 90,
+    memPct: 90,
+    diskPct: 90,
+    forMs: 5 * 60 * 1000,
+    reachability: true,
+  },
+  overrides: [
+    { machine: "nas", diskPct: 98 },
+    { machine: "proxmox-internal", guest: "plex-lxc", cpuPct: 95 },
+  ],
+},
+```
+
+A threshold must hold continuously for `forMs` before firing. Reachability (scrape failure / machine down) fires immediately. One notification on fire, one on resolve — no re-notify. Events persist to SQLite (`alert_events` table, keeps last 1000 rows or 90 days) and render in the dashboard's **Alerts** section (active list + collapsible history). Omit the `alerts` block entirely to disable.
+
 ## Known limitations
 
 - **QEMU VM disk usage** reports as `0 B / 0 B` unless `qemu-guest-agent` is installed inside the guest. LXC containers report correctly.
