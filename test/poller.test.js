@@ -224,6 +224,23 @@ test('Poller: persists samples to injected storage on each tick', async () => {
   assert.equal(guest.memUsed, 400);
 });
 
+test('Poller: invokes alertManager.evaluate(state) at end of tick', async () => {
+  const calls = [];
+  const fakeAlertManager = { evaluate: async (state, now) => { calls.push({ state, now }); } };
+  const config = {
+    server: { port: 0, pollIntervalMs: 60_000, proxmoxTimeoutMs: 1000, nodeExporterTimeoutMs: 1000, serviceTimeoutMs: 1000 },
+    machines: [{ name: 'm', type: 'node_exporter', host: 'x', port: 9100 }],
+  };
+  const fakeScraper = async () => ({
+    memTotal: 1000, memAvailable: 500, diskTotal: 10000, diskAvailable: 5000,
+    netRxBytes: 0, netTxBytes: 0, cpuIdleSeconds: 0, cpuTotalSeconds: 1, bootTimeSeconds: 0, loadavg: [0,0,0],
+  });
+  const p = new Poller(config, { scrapers: { node_exporter: fakeScraper }, storage: null, alertManager: fakeAlertManager });
+  await p.tick();
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].state.machines.m.status, 'up');
+});
+
 test('Poller: overlays guestLinks url/icon onto matching auto-discovered guests', async () => {
   const config = {
     server: { pollIntervalMs: 10_000 },
