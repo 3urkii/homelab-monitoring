@@ -170,3 +170,22 @@ test('AlertManager: rehydrates firing state from storage on construct', async ()
   assert.match(calls[0].opts.headers.Title, /OK.*m.*cpu/);
   storage.close();
 });
+
+test('AlertManager.getActive: returns currently-firing rules from in-memory state', async () => {
+  const storage = new Storage(':memory:');
+  const mgr = new AlertManager({
+    config: mkConfig(),
+    storage,
+    fetch: async () => ({ ok: true }),
+  });
+  const hot = { cpuPct: 95, memUsed: 0, memTotal: 100, diskUsed: 0, diskTotal: 100 };
+  await mgr.evaluate(mkState('m', hot), 0);
+  await mgr.evaluate(mkState('m', hot), 60_000);
+  const active = mgr.getActive();
+  assert.equal(active.length, 1);
+  assert.equal(active[0].machine, 'm');
+  assert.equal(active[0].metric, 'cpu');
+  assert.equal(active[0].value, 95);
+  assert.equal(active[0].since, 60_000);
+  storage.close();
+});
