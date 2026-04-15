@@ -107,3 +107,40 @@ test('AlertManager.evaluate: reachability fires immediately on scrape failure', 
   assert.match(calls[1].opts.headers.Title, /OK.*m.*reachability/);
   storage.close();
 });
+
+test('AlertManager.evaluate: transitions persist to storage', async () => {
+  const storage = new Storage(':memory:');
+  const mgr = new AlertManager({
+    config: mkConfig(),
+    storage,
+    fetch: async () => ({ ok: true }),
+  });
+  const hot  = { cpuPct: 95, memUsed: 0, memTotal: 100, diskUsed: 0, diskTotal: 100 };
+  const cold = { cpuPct: 10, memUsed: 0, memTotal: 100, diskUsed: 0, diskTotal: 100 };
+  await mgr.evaluate(mkState('m', hot),  0);
+  await mgr.evaluate(mkState('m', hot),  60_000);
+  await mgr.evaluate(mkState('m', cold), 120_000);
+  const events = storage.listAlertEvents({ limit: 10 });
+  assert.equal(events.length, 2);
+  assert.equal(events[1].kind, 'firing');
+  assert.equal(events[0].kind, 'resolved');
+  assert.equal(events[1].value, 95);
+  assert.equal(events[1].threshold, 90);
+  storage.close();
+});
+
+test('AlertManager.evaluate: ntfy failure does not prevent event row or block next call', async () => {
+  const storage = new Storage(':memory:');
+  const mgr = new AlertManager({
+    config: mkConfig(),
+    storage,
+    fetch: async () => { throw new Error('network'); },
+  });
+  const hot  = { cpuPct: 95, memUsed: 0, memTotal: 100, diskUsed: 0, diskTotal: 100 };
+  await mgr.evaluate(mkState('m', hot), 0);
+  await mgr.evaluate(mkState('m', hot), 60_000);
+  const events = storage.listAlertEvents({ limit: 10 });
+  assert.equal(events.length, 1);
+  assert.equal(events[0].kind, 'firing');
+  storage.close();
+});
