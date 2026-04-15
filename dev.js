@@ -46,17 +46,17 @@ async function mockProxmox(entry) {
     },
     guests: isDmz
       ? [
-          { vmid: 101, name: 'mc-server', type: 'lxc',  status: 'running', cpuPct: drift(45, 15, 0.4),  memUsed: 3.2e9, memTotal: 4e9,   diskUsed: 12e9,  diskTotal: 20e9, uptime: 432000 },
-          { vmid: 102, name: 'val-srv',   type: 'lxc',  status: 'running', cpuPct: drift(60, 20, 0.5),  memUsed: 3.6e9, memTotal: 4e9,   diskUsed: 15e9,  diskTotal: 20e9, uptime: 200000 },
-          { vmid: 103, name: 'cs2-srv',   type: 'lxc',  status: 'running', cpuPct: drift(30, 15, 0.35), memUsed: 2.1e9, memTotal: 4e9,   diskUsed: 18e9,  diskTotal: 20e9, uptime: 120000 },
-          { vmid: 104, name: 'rust-srv',  type: 'lxc',  status: 'stopped', cpuPct: 0,                   memUsed: 0,     memTotal: 6e9,   diskUsed: 22e9,  diskTotal: 40e9, uptime: 0 },
-          { vmid: 301, name: 'win-srv',   type: 'qemu', status: 'stopped', cpuPct: 0,                   memUsed: 0,     memTotal: 8e9,   diskUsed: 0,     diskTotal: 0,    uptime: 0 },
+          { vmid: 101, name: 'mc-server', type: 'lxc',  status: 'running', cpuPct: drift(45, 15, 0.4),  memUsed: 3.2e9, memTotal: 4e9,   diskUsed: 12e9,  diskTotal: 20e9, uptime: 432000, _cumulative: { netRxBytes: 1_500_000 * elapsedSec, netTxBytes: 800_000 * elapsedSec } },
+          { vmid: 102, name: 'val-srv',   type: 'lxc',  status: 'running', cpuPct: drift(60, 20, 0.5),  memUsed: 3.6e9, memTotal: 4e9,   diskUsed: 15e9,  diskTotal: 20e9, uptime: 200000, _cumulative: { netRxBytes: 4_000_000 * elapsedSec, netTxBytes: 2_500_000 * elapsedSec } },
+          { vmid: 103, name: 'cs2-srv',   type: 'lxc',  status: 'running', cpuPct: drift(30, 15, 0.35), memUsed: 2.1e9, memTotal: 4e9,   diskUsed: 18e9,  diskTotal: 20e9, uptime: 120000, _cumulative: { netRxBytes: 6_000_000 * elapsedSec, netTxBytes: 3_200_000 * elapsedSec } },
+          { vmid: 104, name: 'rust-srv',  type: 'lxc',  status: 'stopped', cpuPct: 0,                   memUsed: 0,     memTotal: 6e9,   diskUsed: 22e9,  diskTotal: 40e9, uptime: 0,      _cumulative: { netRxBytes: 0, netTxBytes: 0 } },
+          { vmid: 301, name: 'win-srv',   type: 'qemu', status: 'stopped', cpuPct: 0,                   memUsed: 0,     memTotal: 8e9,   diskUsed: 0,     diskTotal: 0,    uptime: 0,      _cumulative: { netRxBytes: 0, netTxBytes: 0 } },
         ]
       : [
-          { vmid: 201, name: 'plex-lxc',  type: 'lxc',  status: 'running', cpuPct: drift(12, 8, 0.25),  memUsed: 2.4e9, memTotal: 4e9,   diskUsed: 5.5e9, diskTotal: 20e9, uptime: 700000 },
-          { vmid: 202, name: 'nginx-lxc', type: 'lxc',  status: 'running', cpuPct: drift(2, 1, 0.8),    memUsed: 512e6, memTotal: 1e9,   diskUsed: 2e9,   diskTotal: 10e9, uptime: 900000 },
-          { vmid: 203, name: 'pihole',    type: 'lxc',  status: 'running', cpuPct: drift(1, 0.5, 1),    memUsed: 220e6, memTotal: 512e6, diskUsed: 1e9,   diskTotal: 5e9,  uptime: 600000 },
-          { vmid: 204, name: 'dashboard', type: 'lxc',  status: 'running', cpuPct: drift(3, 2, 0.6),    memUsed: 180e6, memTotal: 512e6, diskUsed: 600e6, diskTotal: 5e9,  uptime: 150000 },
+          { vmid: 201, name: 'plex-lxc',  type: 'lxc',  status: 'running', cpuPct: drift(12, 8, 0.25),  memUsed: 2.4e9, memTotal: 4e9,   diskUsed: 5.5e9, diskTotal: 20e9, uptime: 700000, _cumulative: { netRxBytes: 300_000 * elapsedSec, netTxBytes: 10_000_000 * elapsedSec } },
+          { vmid: 202, name: 'nginx-lxc', type: 'lxc',  status: 'running', cpuPct: drift(2, 1, 0.8),    memUsed: 512e6, memTotal: 1e9,   diskUsed: 2e9,   diskTotal: 10e9, uptime: 900000, _cumulative: { netRxBytes: 200_000 * elapsedSec, netTxBytes: 800_000 * elapsedSec } },
+          { vmid: 203, name: 'pihole',    type: 'lxc',  status: 'running', cpuPct: drift(1, 0.5, 1),    memUsed: 220e6, memTotal: 512e6, diskUsed: 1e9,   diskTotal: 5e9,  uptime: 600000, _cumulative: { netRxBytes: 100_000 * elapsedSec, netTxBytes: 100_000 * elapsedSec } },
+          { vmid: 204, name: 'dashboard', type: 'lxc',  status: 'running', cpuPct: drift(3, 2, 0.6),    memUsed: 180e6, memTotal: 512e6, diskUsed: 600e6, diskTotal: 5e9,  uptime: 150000, _cumulative: { netRxBytes: 50_000 * elapsedSec, netTxBytes: 50_000 * elapsedSec } },
         ],
   };
 }
