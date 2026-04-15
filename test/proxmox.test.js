@@ -25,3 +25,30 @@ test('parseClusterResources: throws when node not found', () => {
     /node not found/,
   );
 });
+
+test('parseClusterResources: collects LXC and QEMU guests for the target node', () => {
+  const { guests } = parseClusterResources(clusterFixture.data, 'proxmox-dmz');
+  assert.equal(guests.length, 2);
+
+  const lxc = guests.find((g) => g.vmid === 101);
+  assert.equal(lxc.type, 'lxc');
+  assert.equal(lxc.name, 'mc-server');
+  assert.equal(lxc.status, 'running');
+  assert.equal(lxc.cpuPct.toFixed(1), '22.5');
+  assert.equal(lxc.memUsed, 2147483648);
+  assert.equal(lxc.memTotal, 4294967296);
+  assert.equal(lxc.diskUsed, 10737418240);
+  assert.equal(lxc.diskTotal, 21474836480);
+
+  const qemu = guests.find((g) => g.vmid === 201);
+  assert.equal(qemu.type, 'qemu');
+  assert.equal(qemu.name, 'win-vm');
+  assert.equal(qemu.status, 'stopped');
+  assert.equal(qemu.diskTotal, 0);
+});
+
+test('parseClusterResources: filters out other nodes and storage entries', () => {
+  const { guests } = parseClusterResources(clusterFixture.data, 'proxmox-dmz');
+  assert.equal(guests.length, 2);
+  assert.ok(guests.every((g) => g.vmid !== undefined));
+});
