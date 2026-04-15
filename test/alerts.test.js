@@ -189,3 +189,108 @@ test('AlertManager.getActive: returns currently-firing rules from in-memory stat
   assert.equal(active[0].since, 60_000);
   storage.close();
 });
+
+test('AlertManager.evaluate: guest reachability ignored when guest has never been running', async () => {
+  const calls = [];
+  const storage = new Storage(':memory:');
+  const mgr = new AlertManager({
+    config: mkConfig(),
+    storage,
+    fetch: async (url, opts) => { calls.push({ url, opts }); return { ok: true }; },
+  });
+  const stateWithStoppedGuest = {
+    lastPoll: null, globalStatus: 'up',
+    machines: { m: {
+      type: 'proxmox', status: 'up',
+      host: { cpuPct: 10, memUsed: 0, memTotal: 100, diskUsed: 0, diskTotal: 100 },
+      guests: [{ name: 'g1', status: 'stopped', cpuPct: 0, memUsed: 0, memTotal: 100, diskUsed: 0, diskTotal: 100 }],
+    }},
+  };
+  await mgr.evaluate(stateWithStoppedGuest, 0);
+  await mgr.evaluate(stateWithStoppedGuest, 1000);
+  assert.equal(calls.length, 0);
+  storage.close();
+});
+
+test('AlertManager.evaluate: guest reachability fires when previously-running guest goes down', async () => {
+  const calls = [];
+  const storage = new Storage(':memory:');
+  const mgr = new AlertManager({
+    config: mkConfig(),
+    storage,
+    fetch: async (url, opts) => { calls.push({ url, opts }); return { ok: true }; },
+  });
+  const host = { cpuPct: 10, memUsed: 0, memTotal: 100, diskUsed: 0, diskTotal: 100 };
+  const running = { name: 'g1', status: 'running', cpuPct: 0, memUsed: 0, memTotal: 100, diskUsed: 0, diskTotal: 100 };
+  const stopped = { ...running, status: 'stopped' };
+  const mk = (guest) => ({
+    lastPoll: null, globalStatus: 'up',
+    machines: { m: { type: 'proxmox', status: 'up', host, guests: [guest] } },
+  });
+
+  await mgr.evaluate(mk(running), 0);
+  assert.equal(calls.length, 0);
+  await mgr.evaluate(mk(stopped), 1000);
+  assert.equal(calls.length, 1);
+  assert.match(calls[0].opts.headers.Title, /FIRING.*m\/g1.*reachability/);
+  // still stopped — idempotent
+  await mgr.evaluate(mk(stopped), 2000);
+  assert.equal(calls.length, 1);
+  // recovered
+  await mgr.evaluate(mk(running), 3000);
+  assert.equal(calls.length, 2);
+  assert.match(calls[1].opts.headers.Title, /OK.*m\/g1.*reachability/);
+  storage.close();
+});
+
+test('AlertManager: rehydrates guest reachability and resolves on recovery', async () => {
+  const storage = new Storage(':memory:');
+  storage.insertAlertEvent({ ts: 500, machine: 'm', guest: 'g1', metric: 'reachability', kind: 'firing', value: null, threshold: null, message: 'unreachable' });
+
+  const calls = [];
+  const mgr = new AlertManager({
+    config: mkConfig(),
+    storage,
+    fetch: async (url, opts) => { calls.push({ url, opts }); return { ok: true }; },
+  });
+
+  const host = { cpuPct: 10, memUsed: 0, memTotal: 100, diskUsed: 0, diskTotal: 100 };
+  const stoppedState = {
+    lastPoll: null, globalStatus: 'up',
+    machines: { m: { type: 'proxmox', status: 'up', host, guests: [{ name: 'g1', status: 'stopped', cpuPct: 0, memUsed: 0, memTotal: 100, diskUsed: 0, diskTotal: 100 }] } },
+  };
+  const runningState = {
+    lastPoll: null, globalStatus: 'up',
+    machines: { m: { type: 'proxmox', status: 'up', host, guests: [{ name: 'g1', status: 'running', cpuPct: 0, memUsed: 0, memTotal: 100, diskUsed: 0, diskTotal: 100 }] } },
+  };
+
+  // First poll: guest still stopped — should NOT re-fire (state was rehydrated)
+  await mgr.evaluate(stoppedState, 1000);
+  assert.equal(calls.length, 0);
+  // Recovery — resolved POST
+  await mgr.evaluate(runningState, 2000);
+  assert.equal(calls.length, 1);
+  assert.match(calls[0].opts.headers.Title, /OK.*m\/g1.*reachability/);
+  storage.close();
+});
+
+test('AlertManager.#notify: non-2xx ntfy response logs error but does not throw', async () => {
+  const errs = [];
+  const origErr = console.error;
+  console.error = (msg) => { errs.push(msg); };
+  try {
+    const storage = new Storage(':memory:');
+    const mgr = new AlertManager({
+      config: mkConfig(),
+      storage,
+      fetch: async () => ({ ok: false, status: 429 }),
+    });
+    const hot  = { cpuPct: 95, memUsed: 0, memTotal: 100, diskUsed: 0, diskTotal: 100 };
+    await mgr.evaluate(mkState('m', hot), 0);
+    await mgr.evaluate(mkState('m', hot), 60_000);
+    assert.ok(errs.some((e) => /429/.test(String(e))), 'expected 429 to appear in error log');
+    storage.close();
+  } finally {
+    console.error = origErr;
+  }
+});
