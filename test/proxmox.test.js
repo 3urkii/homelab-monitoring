@@ -52,3 +52,13 @@ test('parseClusterResources: filters out other nodes and storage entries', () =>
   assert.equal(guests.length, 2);
   assert.ok(guests.every((g) => g.vmid !== undefined));
 });
+
+const { parseNodeStatus } = require('../lib/proxmox.js');
+
+const statusFixture = JSON.parse(fs.readFileSync(
+  path.join(__dirname, 'fixtures/proxmox-node-status.json'), 'utf8'));
+
+test('parseNodeStatus: extracts loadavg as numbers', () => {
+  const result = parseNodeStatus(statusFixture.data);
+  assert.deepEqual(result.loadavg, [0.10, 0.15, 0.18]);
+});
