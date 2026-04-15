@@ -22,6 +22,8 @@
   --pink: #ff79c6;
   --purple: #bd93f9;
   --cyan: #8be9fd;
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
 }
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 html { scroll-behavior: smooth; }
@@ -74,8 +76,12 @@ h1 .tld    { color: var(--pink);   text-shadow: 0 0 24px rgba(255,121,198,0.45);
   background: transparent; border: 1px solid var(--current-line);
   color: var(--fg); padding: 0.35rem 0.7rem; border-radius: 4px;
   font-family: "JetBrains Mono", monospace; cursor: pointer;
+  transition: border-color 140ms var(--ease-out), background 140ms var(--ease-out), transform 160ms var(--ease-out);
 }
-.refresh:hover { border-color: var(--purple); }
+.refresh:active { transform: scale(0.97); }
+@media (hover: hover) and (pointer: fine) {
+  .refresh:hover { border-color: var(--purple); background: rgba(189,147,249,0.08); }
+}
 @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.45; } }
 
 main {
@@ -97,13 +103,22 @@ main {
   border: 1px solid var(--current-line);
   border-radius: 4px;
   padding: 1.25rem 1.25rem 1.25rem 1.5rem;
-  transition: border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+  transition: border-color 200ms var(--ease-out);
   overflow: hidden;
+  animation: cardEntry 420ms var(--ease-out) both;
+}
+.machines-grid .card:nth-child(1) { animation-delay: 0ms; }
+.machines-grid .card:nth-child(2) { animation-delay: 60ms; }
+.machines-grid .card:nth-child(3) { animation-delay: 120ms; }
+.machines-grid .card:nth-child(4) { animation-delay: 180ms; }
+@keyframes cardEntry {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 .card::before {
   content: ""; position: absolute; inset-block: 0; left: 0;
   width: 3px; background: var(--purple); opacity: 0.8;
-  border-radius: 4px 0 0 4px; transition: opacity 0.2s ease;
+  border-radius: 4px 0 0 4px;
 }
 .card::after {
   content: ""; position: absolute; bottom: 0; right: 0;
@@ -131,7 +146,7 @@ main {
 .stat-row { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.35rem; font-family: "JetBrains Mono", monospace; font-size: 0.78rem; }
 .stat-row .label   { color: var(--comment); width: 3.5rem; text-transform: uppercase; }
 .stat-row .bar     { flex: 1; height: 6px; background: var(--current-line); border-radius: 2px; overflow: hidden; }
-.stat-row .bar-fill{ height: 100%; background: var(--purple); width: 0; transition: width 0.4s ease, background 0.4s ease; }
+.stat-row .bar-fill{ height: 100%; background: var(--purple); width: 0; transition: width 280ms var(--ease-out), background 280ms ease; }
 .stat-row .value   { color: var(--fg); min-width: 5.5rem; text-align: right; }
 
 .bar-fill[data-level="low"]   { background: var(--purple); }
@@ -183,9 +198,12 @@ details.guests[open] > summary::before { content: "▾ "; }
   color: inherit;
   font-family: "JetBrains Mono", monospace;
   font-size: 0.75rem;
-  transition: background 0.15s ease;
+  transition: background 140ms var(--ease-out), border-left-color 140ms var(--ease-out), transform 160ms var(--ease-out);
 }
-.inner-service-item:hover { background: var(--current-line); }
+.inner-service-item:active { transform: scale(0.98); }
+@media (hover: hover) and (pointer: fine) {
+  .inner-service-item:hover { background: var(--current-line); }
+}
 .inner-service-item[data-status="down"] { border-left-color: var(--red); opacity: 0.75; }
 .inner-service-item .iss-icon {
   width: 22px; height: 22px;
@@ -261,7 +279,7 @@ details.guests[open] > summary::before { content: "▾ "; }
 }
 .mini-stat .mini-fill {
   height: 100%; background: var(--purple); width: 0;
-  transition: width 0.4s ease, background 0.4s ease;
+  transition: width 280ms var(--ease-out), background 280ms ease;
 }
 .mini-fill[data-level="low"]  { background: var(--purple); }
 .mini-fill[data-level="mid"]  { background: var(--cyan); }
@@ -289,6 +307,17 @@ footer {
   font-family: "JetBrains Mono", monospace; font-size: 0.72rem; color: var(--comment);
 }
 footer .prompt { color: var(--green); margin-right: 0.5ch; }
+
+@media (prefers-reduced-motion: reduce) {
+  .card { animation: none; }
+  .status-chip .dot,
+  .card-status-dot,
+  .guest-row-head .guest-dot { animation: none; }
+  .stat-row .bar-fill,
+  .mini-stat .mini-fill { transition: background 200ms ease; }
+  .refresh:active,
+  .inner-service-item:active { transform: none; }
+}
 </style>
 </head>
 <body>
