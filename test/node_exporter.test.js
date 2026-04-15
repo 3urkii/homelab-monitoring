@@ -2,7 +2,8 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const { parseMetrics } = require('../lib/node_exporter.js');
+const http = require('node:http');
+const { parseMetrics, fetch: fetchMetrics } = require('../lib/node_exporter.js');
 
 const fixture = fs.readFileSync(
   path.join(__dirname, 'fixtures/node-exporter-metrics.txt'),
@@ -39,4 +40,38 @@ test('parseMetrics: boot time and load averages', () => {
   const result = parseMetrics(fixture);
   assert.equal(result.bootTimeSeconds, 1_700_200_000);
   assert.deepEqual(result.loadavg, [0.15, 0.22, 0.18]);
+});
+
+test('fetch: retrieves and parses metrics over local HTTP', async () => {
+  const server = http.createServer((req, res) => {
+    if (req.url === '/metrics') {
+      res.writeHead(200, { 'Content-Type': 'text/plain' });
+      res.end(fixture);
+    } else {
+      res.writeHead(404).end();
+    }
+  });
+  await new Promise((r) => server.listen(0, '127.0.0.1', r));
+  const { port } = server.address();
+  try {
+    const result = await fetchMetrics({ name: 'test', host: '127.0.0.1', port, nodeExporterTimeoutMs: 2000 });
+    assert.equal(result.memTotal, 16_777_216_000);
+    assert.equal(result.netRxBytes, 1_234_567_000);
+  } finally {
+    await new Promise((r) => server.close(r));
+  }
+});
+
+test('fetch: throws on non-2xx', async () => {
+  const server = http.createServer((req, res) => res.writeHead(500).end('err'));
+  await new Promise((r) => server.listen(0, '127.0.0.1', r));
+  const { port } = server.address();
+  try {
+    await assert.rejects(
+      () => fetchMetrics({ name: 'bad', host: '127.0.0.1', port, nodeExporterTimeoutMs: 2000 }),
+      /HTTP 500/,
+    );
+  } finally {
+    await new Promise((r) => server.close(r));
+  }
 });
