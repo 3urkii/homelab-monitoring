@@ -81,3 +81,29 @@ test('AlertManager.evaluate: condition flaps below forMs → no notification', a
   assert.equal(calls.length, 0);
   storage.close();
 });
+
+test('AlertManager.evaluate: reachability fires immediately on scrape failure', async () => {
+  const calls = [];
+  const storage = new Storage(':memory:');
+  const mgr = new AlertManager({
+    config: mkConfig(),
+    storage,
+    fetch: async (url, opts) => { calls.push({ url, opts }); return { ok: true }; },
+  });
+  // up
+  await mgr.evaluate(mkState('m', { cpuPct: 10, memUsed: 0, memTotal: 100, diskUsed: 0, diskTotal: 100 }), 0);
+  assert.equal(calls.length, 0);
+  // down — fires with no forMs delay
+  const downState = { lastPoll: null, globalStatus: 'down', machines: { m: { type: 'proxmox', status: 'down', host: null, guests: [], error: 'boom' } } };
+  await mgr.evaluate(downState, 1000);
+  assert.equal(calls.length, 1);
+  assert.match(calls[0].opts.headers.Title, /FIRING.*m.*reachability/);
+  // still down, no new POST
+  await mgr.evaluate(downState, 2000);
+  assert.equal(calls.length, 1);
+  // recovered
+  await mgr.evaluate(mkState('m', { cpuPct: 10, memUsed: 0, memTotal: 100, diskUsed: 0, diskTotal: 100 }), 3000);
+  assert.equal(calls.length, 2);
+  assert.match(calls[1].opts.headers.Title, /OK.*m.*reachability/);
+  storage.close();
+});
