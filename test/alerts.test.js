@@ -144,3 +144,29 @@ test('AlertManager.evaluate: ntfy failure does not prevent event row or block ne
   assert.equal(events[0].kind, 'firing');
   storage.close();
 });
+
+test('AlertManager: rehydrates firing state from storage on construct', async () => {
+  const storage = new Storage(':memory:');
+  // Seed: a firing event with no later resolved for m/_host/cpu
+  storage.insertAlertEvent({ ts: 1000, machine: 'm', guest: null, metric: 'cpu', kind: 'firing', value: 95, threshold: 90, message: 'cpu hot' });
+
+  const calls = [];
+  const mgr = new AlertManager({
+    config: mkConfig(),
+    storage,
+    fetch: async (url, opts) => { calls.push({ url, opts }); return { ok: true }; },
+  });
+
+  const hot  = { cpuPct: 95, memUsed: 0, memTotal: 100, diskUsed: 0, diskTotal: 100 };
+  const cold = { cpuPct: 10, memUsed: 0, memTotal: 100, diskUsed: 0, diskTotal: 100 };
+
+  // First evaluate with condition still hot → must NOT re-fire
+  await mgr.evaluate(mkState('m', hot), 10_000);
+  assert.equal(calls.length, 0);
+
+  // Cool down → resolved POST fires
+  await mgr.evaluate(mkState('m', cold), 11_000);
+  assert.equal(calls.length, 1);
+  assert.match(calls[0].opts.headers.Title, /OK.*m.*cpu/);
+  storage.close();
+});
