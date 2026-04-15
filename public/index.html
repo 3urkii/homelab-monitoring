@@ -7,6 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Rajdhani:wght@500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/uplot@1.6.31/dist/uPlot.min.css">
 <style>
 :root {
   --bg: #282a36;
@@ -308,6 +309,139 @@ footer {
 }
 footer .prompt { color: var(--green); margin-right: 0.5ch; }
 
+.chart-btn {
+  background: transparent;
+  border: 1px solid var(--current-line);
+  color: var(--comment);
+  width: 24px; height: 24px;
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 3px;
+  cursor: pointer;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.66rem;
+  padding: 0;
+  transition: border-color 140ms var(--ease-out), color 140ms var(--ease-out), background 140ms var(--ease-out), transform 160ms var(--ease-out);
+}
+.chart-btn::before { content: "▤"; }
+.chart-btn:active { transform: scale(0.92); }
+@media (hover: hover) and (pointer: fine) {
+  .chart-btn:hover { border-color: var(--purple); color: var(--purple); background: var(--bg-alt); }
+}
+.card-header .chart-btn { margin-left: auto; }
+.guest-row-head .chart-btn { margin-left: 0.25rem; width: 20px; height: 20px; font-size: 0.58rem; }
+
+.chart-modal {
+  position: fixed; inset: 0;
+  background: rgba(10, 10, 15, 0.72);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 10000;
+  padding: 2rem;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 220ms var(--ease-out);
+}
+.chart-modal.open { opacity: 1; pointer-events: auto; }
+.chart-modal-content {
+  background: var(--surface);
+  border: 1px solid var(--current-line);
+  border-radius: 4px;
+  padding: 1.5rem;
+  width: 100%;
+  max-width: 980px;
+  max-height: calc(100vh - 4rem);
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  position: relative;
+  transform: scale(0.96) translateY(8px);
+  opacity: 0;
+  transition: transform 260ms var(--ease-out), opacity 220ms var(--ease-out);
+}
+.chart-modal.open .chart-modal-content { transform: scale(1) translateY(0); opacity: 1; }
+.chart-modal-content::before {
+  content: ""; position: absolute; inset-block: 0; left: 0;
+  width: 3px; background: var(--purple); opacity: 0.8;
+  border-radius: 4px 0 0 4px;
+}
+.chart-modal-header {
+  display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;
+}
+.chart-modal-title {
+  font-family: Rajdhani, monospace; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.08em; font-size: 1.1rem; color: var(--fg);
+  text-shadow: 0 0 16px rgba(189,147,249,0.35);
+  flex: 1;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.chart-modal-close {
+  background: transparent;
+  border: 1px solid var(--current-line);
+  color: var(--comment);
+  width: 30px; height: 30px;
+  border-radius: 3px;
+  cursor: pointer;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.9rem;
+  padding: 0;
+  transition: border-color 140ms var(--ease-out), color 140ms var(--ease-out), transform 160ms var(--ease-out);
+}
+.chart-modal-close:active { transform: scale(0.92); }
+@media (hover: hover) and (pointer: fine) {
+  .chart-modal-close:hover { border-color: var(--red); color: var(--red); }
+}
+.chart-range-picker { display: flex; gap: 0.35rem; }
+.chart-range-btn {
+  background: transparent;
+  border: 1px solid var(--current-line);
+  color: var(--comment);
+  padding: 0.3rem 0.7rem;
+  border-radius: 3px;
+  cursor: pointer;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  transition: border-color 140ms var(--ease-out), color 140ms var(--ease-out), background 140ms var(--ease-out), transform 160ms var(--ease-out);
+}
+.chart-range-btn:active { transform: scale(0.96); }
+.chart-range-btn[data-active="true"] {
+  border-color: var(--purple); color: var(--fg); background: var(--bg-alt);
+}
+@media (hover: hover) and (pointer: fine) {
+  .chart-range-btn:hover { border-color: var(--purple); color: var(--fg); }
+}
+.chart-canvas {
+  flex: 1;
+  min-height: 360px;
+  position: relative;
+  background: var(--bg-alt);
+  border-radius: 3px;
+  padding: 0.5rem;
+}
+.chart-status {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--comment);
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.78rem;
+  pointer-events: none;
+}
+
+/* uPlot Dracula theme overrides */
+.u-wrap { background: transparent !important; }
+.u-axis { color: var(--comment) !important; }
+.u-legend {
+  color: var(--comment) !important;
+  font-family: "JetBrains Mono", monospace !important;
+  font-size: 0.72rem !important;
+}
+.u-legend .u-value { color: var(--fg) !important; }
+.u-legend .u-marker { width: 10px !important; height: 10px !important; }
+.u-select { background: rgba(189,147,249,0.18) !important; border: 1px solid var(--purple) !important; }
+.u-cursor-x, .u-cursor-y { background: var(--purple) !important; }
+
 @media (prefers-reduced-motion: reduce) {
   .card { animation: none; }
   .status-chip .dot,
@@ -334,6 +468,23 @@ footer .prompt { color: var(--green); margin-right: 0.5ch; }
     <div class="machines-grid" id="machinesGrid"></div>
   </section>
 </main>
+<div class="chart-modal" id="chartModal" hidden>
+  <div class="chart-modal-content">
+    <div class="chart-modal-header">
+      <div class="chart-modal-title" id="chartModalTitle">—</div>
+      <div class="chart-range-picker" id="chartRangePicker">
+        <button class="chart-range-btn" type="button" data-range="1h">1h</button>
+        <button class="chart-range-btn" type="button" data-range="24h" data-active="true">24h</button>
+        <button class="chart-range-btn" type="button" data-range="7d">7d</button>
+        <button class="chart-range-btn" type="button" data-range="30d">30d</button>
+      </div>
+      <button class="chart-modal-close" type="button" id="chartModalClose" title="Close (Esc)">✕</button>
+    </div>
+    <div class="chart-canvas" id="chartCanvas">
+      <div class="chart-status" id="chartStatus">loading…</div>
+    </div>
+  </div>
+</div>
 <footer><span class="prompt">$</span>homelab-dashboard — polling /api/stats every 5s</footer>
 <script>
 const POLL_INTERVAL_MS = 5000;
@@ -394,6 +545,7 @@ function renderMachineCard(machine, state) {
     <div class="card-header">
       <span class="card-status-dot"></span>
       ${nameHtml}
+      <button class="chart-btn" type="button" title="History graph"></button>
     </div>
     <div class="stats"></div>
     <div class="net-row"><span class="rx">↓ —</span><span class="tx">↑ —</span></div>
@@ -472,6 +624,7 @@ function buildGuestRow(g) {
   const row = document.createElement(hasLink ? 'a' : 'div');
   row.className = 'guest-row';
   row.dataset.status = g.status;
+  row.dataset.guest = g.name;
   if (hasLink) {
     row.href = g.url;
     row.target = '_blank';
@@ -498,6 +651,7 @@ function buildGuestRow(g) {
       <span class="guest-vmid">${g.vmid}</span>
       <span class="guest-uptime">${uptime}</span>
       ${linkArrow}
+      <button class="chart-btn" type="button" title="History graph"></button>
     </div>
     <div class="guest-stats">
       <div class="mini-stat">
@@ -569,6 +723,162 @@ function renderStats(data) {
     updateMachineCard(card, { name, type: machineState.type }, machineState);
   }
 }
+
+// ─── Chart modal ─────────────────────────────────────────
+let uplotLoadPromise = null;
+let chartInstance = null;
+let chartEntity = null;
+let chartRange = '24h';
+
+function loadUplot() {
+  if (typeof uPlot !== 'undefined') return Promise.resolve();
+  if (uplotLoadPromise) return uplotLoadPromise;
+  uplotLoadPromise = new Promise((resolve, reject) => {
+    const script = document.createElement('script');
+    script.src = 'https://cdn.jsdelivr.net/npm/uplot@1.6.31/dist/uPlot.iife.min.js';
+    script.onload = () => resolve();
+    script.onerror = () => reject(new Error('failed to load uPlot from CDN'));
+    document.head.appendChild(script);
+  });
+  return uplotLoadPromise;
+}
+
+function setChartStatus(msg) {
+  const canvas = document.getElementById('chartCanvas');
+  canvas.innerHTML = `<div class="chart-status">${escapeHtml(msg)}</div>`;
+}
+
+async function openChart(entity) {
+  chartEntity = entity;
+  const modal = document.getElementById('chartModal');
+  const title = document.getElementById('chartModalTitle');
+  title.textContent = entity.guest ? `${entity.machine} · ${entity.guest}` : entity.machine;
+  modal.hidden = false;
+  requestAnimationFrame(() => modal.classList.add('open'));
+  setChartStatus('loading uPlot…');
+  try {
+    await loadUplot();
+    await fetchAndRenderChart();
+  } catch (err) {
+    setChartStatus(`error: ${err.message}`);
+  }
+}
+
+function closeChart() {
+  const modal = document.getElementById('chartModal');
+  modal.classList.remove('open');
+  setTimeout(() => {
+    modal.hidden = true;
+    if (chartInstance) {
+      chartInstance.destroy();
+      chartInstance = null;
+    }
+    chartEntity = null;
+  }, 240);
+}
+
+async function fetchAndRenderChart() {
+  if (!chartEntity) return;
+  setChartStatus('loading…');
+  const params = new URLSearchParams({
+    machine: chartEntity.machine,
+    range: chartRange,
+    metrics: 'cpu,memUsed,memTotal,netRx,netTx',
+  });
+  if (chartEntity.guest) params.set('guest', chartEntity.guest);
+  try {
+    const res = await fetch(`/api/history?${params}`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    renderChart(data);
+  } catch (err) {
+    setChartStatus(`error: ${err.message}`);
+  }
+}
+
+function renderChart(data) {
+  const canvas = document.getElementById('chartCanvas');
+  canvas.innerHTML = '';
+  if (chartInstance) {
+    chartInstance.destroy();
+    chartInstance = null;
+  }
+  const cpuSeries = data.metrics.cpu || [];
+  if (cpuSeries.length === 0) {
+    setChartStatus('no data in this range yet — keep the dashboard running to accumulate history');
+    return;
+  }
+  const timestamps = cpuSeries.map(([ts]) => Math.floor(ts / 1000));
+  const cpu = cpuSeries.map(([_, v]) => v);
+  const memUsed = (data.metrics.memUsed || []).map(([_, v]) => v);
+  const memTotal = (data.metrics.memTotal || []).map(([_, v]) => v);
+  const memPct = memUsed.map((used, i) => {
+    const total = memTotal[i];
+    return total && total > 0 ? (used / total) * 100 : null;
+  });
+  const netRxRaw = (data.metrics.netRx || []).map(([_, v]) => v);
+  const netTxRaw = (data.metrics.netTx || []).map(([_, v]) => v);
+  const netRxMB = netRxRaw.map((v) => v != null ? v / 1e6 : null);
+  const netTxMB = netTxRaw.map((v) => v != null ? v / 1e6 : null);
+
+  const opts = {
+    width: canvas.clientWidth || 800,
+    height: canvas.clientHeight || 360,
+    padding: [8, 16, 8, 8],
+    cursor: { drag: { x: true, y: false, setScale: true } },
+    scales: {
+      x: { time: true },
+      y:  { range: [0, 100], auto: false },
+      mb: { auto: true },
+    },
+    axes: [
+      { stroke: '#6272a4', grid: { stroke: '#44475a', width: 1 }, ticks: { stroke: '#44475a' } },
+      { stroke: '#6272a4', grid: { stroke: '#44475a', width: 1 }, ticks: { stroke: '#44475a' }, values: (u, vals) => vals.map((v) => v + '%') },
+      { side: 1, scale: 'mb', stroke: '#8be9fd', grid: { show: false }, values: (u, vals) => vals.map((v) => v.toFixed(1) + ' MB/s') },
+    ],
+    series: [
+      {},
+      { label: 'cpu',     stroke: '#bd93f9', width: 1.5, scale: 'y'  },
+      { label: 'mem',     stroke: '#ff79c6', width: 1.5, scale: 'y'  },
+      { label: 'rx MB/s', stroke: '#8be9fd', width: 1,   scale: 'mb' },
+      { label: 'tx MB/s', stroke: '#50fa7b', width: 1,   scale: 'mb' },
+    ],
+  };
+  chartInstance = new uPlot(opts, [timestamps, cpu, memPct, netRxMB, netTxMB], canvas);
+}
+
+document.getElementById('chartModalClose').addEventListener('click', closeChart);
+document.getElementById('chartModal').addEventListener('click', (e) => {
+  if (e.target.id === 'chartModal') closeChart();
+});
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && !document.getElementById('chartModal').hidden) {
+    closeChart();
+  }
+});
+document.getElementById('chartRangePicker').addEventListener('click', (e) => {
+  const btn = e.target.closest('.chart-range-btn');
+  if (!btn) return;
+  const range = btn.dataset.range;
+  if (range === chartRange) return;
+  chartRange = range;
+  document.querySelectorAll('.chart-range-btn').forEach((b) => {
+    b.dataset.active = b.dataset.range === range ? 'true' : 'false';
+  });
+  fetchAndRenderChart();
+});
+document.getElementById('machinesGrid').addEventListener('click', (e) => {
+  const btn = e.target.closest('.chart-btn');
+  if (!btn) return;
+  e.preventDefault();
+  e.stopPropagation();
+  const card = btn.closest('.card');
+  const row = btn.closest('.guest-row');
+  if (!card) return;
+  const machine = card.dataset.machine;
+  const guest = row?.dataset.guest || null;
+  openChart({ machine, guest });
+});
 
 document.getElementById('refreshBtn').addEventListener('click', fetchStats);
 fetchStats();
