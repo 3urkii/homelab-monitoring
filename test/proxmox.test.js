@@ -39,12 +39,16 @@ test('parseClusterResources: collects LXC and QEMU guests for the target node', 
   assert.equal(lxc.memTotal, 4294967296);
   assert.equal(lxc.diskUsed, 10737418240);
   assert.equal(lxc.diskTotal, 21474836480);
+  assert.equal(lxc._cumulative.netRxBytes, 500000000);
+  assert.equal(lxc._cumulative.netTxBytes, 250000000);
 
   const qemu = guests.find((g) => g.vmid === 201);
   assert.equal(qemu.type, 'qemu');
   assert.equal(qemu.name, 'win-vm');
   assert.equal(qemu.status, 'stopped');
   assert.equal(qemu.diskTotal, 0);
+  assert.equal(qemu._cumulative.netRxBytes, 0);
+  assert.equal(qemu._cumulative.netTxBytes, 0);
 });
 
 test('parseClusterResources: filters out other nodes and storage entries', () => {
