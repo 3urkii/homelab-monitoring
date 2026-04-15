@@ -333,6 +333,14 @@ function statRow(label, pct) {
 }
 function updateMachineCard(card, machine, state) {
   card.dataset.status = state.status;
+  const errorHolder = card.querySelector('.card-error') ?? (() => {
+    const el = document.createElement('div');
+    el.className = 'card-error';
+    el.style.cssText = 'color:var(--red);font-family:"JetBrains Mono",monospace;font-size:0.7rem;margin-top:0.4rem;';
+    card.appendChild(el);
+    return el;
+  })();
+  errorHolder.textContent = state.status === 'down' && state.error ? state.error : '';
   const host = state.host;
   const cpuPct = host?.cpuPct ?? null;
   const memPct = host ? pctSafe(host.memUsed, host.memTotal) : null;
