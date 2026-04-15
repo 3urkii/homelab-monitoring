@@ -64,7 +64,7 @@ homelab-monitoring/
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "test": "node --test test/"
+    "test": "node --test"
   },
   "engines": {
     "node": ">=20.0.0"
