@@ -291,6 +291,9 @@ function pctSafe(used, total) {
 function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, (c) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
 }
+function iconFallback(name) {
+  return String(name).replace(/[^a-z0-9]/gi, '').slice(0, 3).toUpperCase() || '???';
+}
 
 function renderMachineCard(machine, state) {
   const card = document.createElement('article');
@@ -405,6 +408,42 @@ function renderStats(data) {
       grid.appendChild(card);
     }
     updateMachineCard(card, { name, type: machineState.type }, machineState);
+  }
+
+  const sGrid = document.getElementById('servicesGrid');
+  for (const svc of data.services) {
+    const key = `${svc.machine}::${svc.name}`;
+    let el = sGrid.querySelector(`.service-card[data-key="${CSS.escape(key)}"]`);
+    if (!el) {
+      el = document.createElement('a');
+      el.className = 'service-card';
+      el.dataset.key = key;
+      el.href = svc.url;
+      el.target = '_blank';
+      el.rel = 'noopener';
+      el.innerHTML = `
+        <div class="service-icon"></div>
+        <div class="service-name">${escapeHtml(svc.name)}</div>
+        <div class="service-status"><span class="dot"></span><span class="text">—</span></div>
+      `;
+      const iconEl = el.querySelector('.service-icon');
+      const iconVal = svc.icon ?? '';
+      if (iconVal.endsWith('.svg') || iconVal.includes('/')) {
+        const img = document.createElement('img');
+        img.src = `icons/${iconVal}`;
+        img.alt = svc.name;
+        img.onerror = () => { iconEl.textContent = iconFallback(svc.name); };
+        iconEl.appendChild(img);
+      } else if (iconVal) {
+        iconEl.textContent = iconVal;
+      } else {
+        iconEl.textContent = iconFallback(svc.name);
+      }
+      sGrid.appendChild(el);
+    }
+    el.dataset.status = svc.status;
+    el.querySelector('.service-status .text').textContent =
+      svc.status === 'up' ? `up ${svc.responseTime ?? '—'}ms` : 'offline';
   }
 }
 
