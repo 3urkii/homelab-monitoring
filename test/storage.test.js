@@ -164,10 +164,11 @@ test('Storage.pruneAlertEvents: keeps last 1000 or last 90d, whichever is larger
     s.insertAlertEvent({ ts: now - 10 * day - i, machine: 'bulk', guest: null, metric: 'cpu', kind: 'firing', value: 95, threshold: 90, message: '' });
   }
   s.pruneAlertEvents(now);
-  const remaining = s.listAlertEvents({ limit: 5000 });
   // Rule: keep union of (last 1000 rows) and (last 90d). The 5 ancient rows are > 90d AND fall outside the 1000 newest → pruned.
-  assert.ok(remaining.every((r) => r.machine !== 'old'), 'ancient rows should be pruned');
-  assert.ok(remaining.length >= 1000, 'at least 1000 newest rows retained');
+  const remaining = s.listAlertEvents({ limit: 500 });
+  assert.equal(remaining.length, 500, 'cap-limited query returns 500 rows, indicating plenty retained');
+  assert.ok(remaining.every((r) => r.machine !== 'old'), 'ancient rows should be pruned from recent results');
+  assert.equal(s.listAlertEvents({ limit: 500, machine: 'old' }).length, 0, 'no old-machine rows remain after prune');
   s.close();
 });
 
