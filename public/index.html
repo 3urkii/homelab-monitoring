@@ -164,71 +164,89 @@ main {
   color: var(--comment); margin-top: 0.4rem;
 }
 
-details.inner-services,
 details.guests {
   margin-top: 0.9rem;
   border-top: 1px dashed var(--current-line);
   padding-top: 0.7rem;
 }
-details.inner-services > summary,
 details.guests > summary {
   cursor: pointer; list-style: none;
   font-family: Rajdhani, monospace; font-weight: 700; text-transform: uppercase;
   letter-spacing: 0.12em; font-size: 0.72rem; color: var(--comment);
   margin-bottom: 0.5rem;
 }
-details.inner-services > summary::-webkit-details-marker,
 details.guests > summary::-webkit-details-marker { display: none; }
-details.inner-services > summary::before,
 details.guests > summary::before { content: "▸ "; color: var(--pink); }
-details.inner-services[open] > summary::before,
 details.guests[open] > summary::before { content: "▾ "; }
 
-.inner-service-list { display: flex; flex-direction: column; gap: 0.35rem; }
-.inner-service-item {
-  display: grid;
-  grid-template-columns: 24px 1fr auto;
-  align-items: center;
-  gap: 0.6rem;
-  padding: 0.4rem 0.55rem;
-  background: var(--bg-alt);
-  border-radius: 3px;
-  border-left: 2px solid var(--purple);
-  text-decoration: none;
+.card-name-link {
   color: inherit;
-  font-family: "JetBrains Mono", monospace;
-  font-size: 0.75rem;
-  transition: background 140ms var(--ease-out), border-left-color 140ms var(--ease-out), transform 160ms var(--ease-out);
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  transition: color 140ms var(--ease-out);
 }
-.inner-service-item:active { transform: scale(0.98); }
+.card-name-link::after {
+  content: "↗";
+  font-size: 0.68em;
+  opacity: 0.35;
+  transition: opacity 140ms var(--ease-out), transform 160ms var(--ease-out);
+}
 @media (hover: hover) and (pointer: fine) {
-  .inner-service-item:hover { background: var(--current-line); }
+  .card-name-link:hover { color: var(--purple); }
+  .card-name-link:hover::after { opacity: 0.9; transform: translate(2px, -2px); }
 }
-.inner-service-item[data-status="down"] { border-left-color: var(--red); opacity: 0.75; }
-.inner-service-item .iss-icon {
+
+.header-launchers {
+  margin-left: auto;
+  display: flex;
+  gap: 0.3rem;
+}
+.header-launcher {
+  width: 28px; height: 28px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 4px;
+  background: var(--bg-alt);
+  border: 1px solid var(--current-line);
+  text-decoration: none;
+  color: var(--purple);
+  font-size: 0.6rem;
+  font-weight: 700;
+  font-family: "JetBrains Mono", monospace;
+  transition: border-color 140ms var(--ease-out), background 140ms var(--ease-out), transform 160ms var(--ease-out);
+}
+.header-launcher img { width: 18px; height: 18px; object-fit: contain; }
+.header-launcher:active { transform: scale(0.95); }
+.header-launcher[data-status="down"] { border-color: var(--red); opacity: 0.65; }
+@media (hover: hover) and (pointer: fine) {
+  .header-launcher:hover { border-color: var(--purple); background: var(--current-line); }
+}
+
+.guest-launchers {
+  display: flex;
+  gap: 0.3rem;
+  margin-left: 0.25rem;
+}
+.guest-launcher {
   width: 22px; height: 22px;
   display: flex; align-items: center; justify-content: center;
-  color: var(--purple); font-size: 0.62rem; font-weight: 700;
-  filter: drop-shadow(0 0 4px var(--purple));
-}
-.inner-service-item .iss-icon img { width: 22px; height: 22px; object-fit: contain; }
-.inner-service-item .iss-name {
-  color: var(--fg);
-  font-family: Rajdhani, monospace;
+  border-radius: 3px;
+  background: var(--bg);
+  border: 1px solid var(--current-line);
+  text-decoration: none;
+  color: var(--purple);
+  font-size: 0.56rem;
   font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  font-size: 0.85rem;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  font-family: "JetBrains Mono", monospace;
+  transition: border-color 140ms var(--ease-out), background 140ms var(--ease-out), transform 160ms var(--ease-out);
 }
-.inner-service-item .iss-status {
-  color: var(--comment); text-transform: uppercase; letter-spacing: 0.06em;
-  display: inline-flex; align-items: center; gap: 0.35rem;
-  font-size: 0.68rem;
+.guest-launcher img { width: 14px; height: 14px; object-fit: contain; }
+.guest-launcher:active { transform: scale(0.95); }
+.guest-launcher[data-status="down"] { border-color: var(--red); opacity: 0.65; }
+@media (hover: hover) and (pointer: fine) {
+  .guest-launcher:hover { border-color: var(--purple); background: var(--surface); }
 }
-.inner-service-item .iss-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--comment); }
-.inner-service-item[data-status="up"]   .iss-dot { background: var(--green); box-shadow: 0 0 4px var(--green); }
-.inner-service-item[data-status="down"] .iss-dot { background: var(--red);   box-shadow: 0 0 4px var(--red); }
 
 .guest-list { display: flex; flex-direction: column; gap: 0.4rem; }
 .guest-row {
@@ -387,18 +405,18 @@ function renderMachineCard(machine, state) {
   card.className = 'card';
   card.dataset.machine = machine.name;
   card.dataset.status = state.status;
+  const nameHtml = state.primaryUrl
+    ? `<a class="card-name card-name-link" href="${escapeHtml(state.primaryUrl)}" target="_blank" rel="noopener">${escapeHtml(machine.name)}</a>`
+    : `<span class="card-name">${escapeHtml(machine.name)}</span>`;
   card.innerHTML = `
     <div class="card-header">
       <span class="card-status-dot"></span>
-      <span class="card-name">${machine.name}</span>
+      ${nameHtml}
+      <div class="header-launchers"></div>
     </div>
     <div class="stats"></div>
     <div class="net-row"><span class="rx">↓ —</span><span class="tx">↑ —</span></div>
     <div class="uptime-row">up —</div>
-    <details class="inner-services" open hidden>
-      <summary>services</summary>
-      <div class="inner-service-list"></div>
-    </details>
     <details class="guests" ${machine.type === 'proxmox' ? 'open' : 'hidden'}>
       <summary>guests</summary>
       <div class="guest-list"></div>
@@ -443,63 +461,71 @@ function updateMachineCard(card, machine, state, services) {
   card.querySelector('.tx').textContent = `↑ ${formatRate(host?.netTx)}`;
   card.querySelector('.uptime-row').textContent = `up ${formatUptime(host?.uptime)}`;
 
-  updateInnerServices(card, services);
-  updateGuestList(card, state, machine);
+  const { byGuest, orphans } = splitServices(services);
+  updateHeaderLaunchers(card, orphans);
+  updateGuestList(card, state, machine, byGuest);
 }
 
-function updateInnerServices(card, services) {
-  const details = card.querySelector('details.inner-services');
-  const list = card.querySelector('.inner-service-list');
-  if (!services || services.length === 0) {
-    details.hidden = true;
-    list.innerHTML = '';
-    return;
-  }
-  details.hidden = false;
-  details.querySelector('summary').textContent = `services [${services.length}]`;
-  list.innerHTML = '';
-  for (const svc of services) {
-    const el = document.createElement('a');
-    el.className = 'inner-service-item';
-    el.dataset.status = svc.status;
-    el.href = svc.url;
-    el.target = '_blank';
-    el.rel = 'noopener';
-    el.innerHTML = `
-      <div class="iss-icon"></div>
-      <div class="iss-name">${escapeHtml(svc.name)}</div>
-      <div class="iss-status"><span class="iss-dot"></span><span class="iss-text">—</span></div>
-    `;
-    const iconEl = el.querySelector('.iss-icon');
-    const iconVal = svc.icon ?? '';
-    if (iconVal.endsWith('.svg') || iconVal.includes('/')) {
-      const img = document.createElement('img');
-      img.src = `icons/${iconVal}`;
-      img.alt = svc.name;
-      img.onerror = () => { iconEl.textContent = iconFallback(svc.name); };
-      iconEl.appendChild(img);
-    } else if (iconVal) {
-      iconEl.textContent = iconVal;
+function splitServices(services) {
+  const byGuest = {};
+  const orphans = [];
+  for (const svc of services ?? []) {
+    if (svc.guest) {
+      (byGuest[svc.guest] ??= []).push(svc);
     } else {
-      iconEl.textContent = iconFallback(svc.name);
+      orphans.push(svc);
     }
-    el.querySelector('.iss-text').textContent =
-      svc.status === 'up' ? `up ${svc.responseTime ?? '—'}ms` : 'offline';
-    list.appendChild(el);
+  }
+  return { byGuest, orphans };
+}
+
+function updateHeaderLaunchers(card, orphans) {
+  const container = card.querySelector('.header-launchers');
+  container.innerHTML = '';
+  for (const svc of orphans) {
+    container.appendChild(buildLauncher(svc, 'header-launcher'));
   }
 }
 
-function updateGuestList(card, state, machine) {
+function buildLauncher(svc, cls) {
+  const el = document.createElement('a');
+  el.className = cls;
+  el.href = svc.url;
+  el.target = '_blank';
+  el.rel = 'noopener';
+  el.dataset.status = svc.status;
+  el.title = svc.status === 'up'
+    ? `${svc.name} — up ${svc.responseTime ?? '—'}ms`
+    : `${svc.name} — offline`;
+  const iconVal = svc.icon ?? '';
+  if (iconVal.endsWith('.svg') || iconVal.includes('/')) {
+    const img = document.createElement('img');
+    img.src = `icons/${iconVal}`;
+    img.alt = svc.name;
+    img.onerror = () => { el.textContent = iconFallback(svc.name); };
+    el.appendChild(img);
+  } else if (iconVal) {
+    el.textContent = iconVal;
+  } else {
+    el.textContent = iconFallback(svc.name);
+  }
+  return el;
+}
+
+function updateGuestList(card, state, machine, servicesByGuest) {
   const list = card.querySelector('.guest-list');
   const details = card.querySelector('details.guests');
   if (state.guests && state.guests.length > 0) {
     details.hidden = false;
     details.querySelector('summary').textContent = `guests [${state.guests.length}]`;
-    list.innerHTML = state.guests
+    list.innerHTML = '';
+    const sorted = state.guests
       .slice()
-      .sort((a, b) => (b.status === 'running') - (a.status === 'running') || a.name.localeCompare(b.name))
-      .map(renderGuestRow)
-      .join('');
+      .sort((a, b) => (b.status === 'running') - (a.status === 'running') || a.name.localeCompare(b.name));
+    for (const g of sorted) {
+      const row = buildGuestRow(g, servicesByGuest[g.name] ?? []);
+      list.appendChild(row);
+    }
   } else if (machine.type === 'proxmox') {
     details.hidden = false;
     details.querySelector('summary').textContent = 'guests [0]';
@@ -509,7 +535,10 @@ function updateGuestList(card, state, machine) {
   }
 }
 
-function renderGuestRow(g) {
+function buildGuestRow(g, services) {
+  const row = document.createElement('div');
+  row.className = 'guest-row';
+  row.dataset.status = g.status;
   const memPct = pctSafe(g.memUsed, g.memTotal);
   const cpuLevel = levelFor(g.cpuPct);
   const memLevel = levelFor(memPct);
@@ -521,30 +550,34 @@ function renderGuestRow(g) {
     ? `<div class="guest-net"><span>↓ ${formatRate(g.netRx)}</span><span>↑ ${formatRate(g.netTx)}</span></div>`
     : '';
   const uptime = g.status === 'running' ? formatUptime(g.uptime) : 'stopped';
-  return `
-    <div class="guest-row" data-status="${g.status}">
-      <div class="guest-row-head">
-        <span class="guest-dot"></span>
-        <span class="guest-name">${escapeHtml(g.name)}</span>
-        <span class="guest-type">${g.type}</span>
-        <span class="guest-vmid">${g.vmid}</span>
-        <span class="guest-uptime">${uptime}</span>
-      </div>
-      <div class="guest-stats">
-        <div class="mini-stat">
-          <span class="mini-label">CPU</span>
-          <div class="mini-bar"><div class="mini-fill" data-level="${cpuLevel}" style="width:${cpuWidth}%"></div></div>
-          <span class="mini-value">${cpuVal}</span>
-        </div>
-        <div class="mini-stat">
-          <span class="mini-label">MEM</span>
-          <div class="mini-bar"><div class="mini-fill" data-level="${memLevel}" style="width:${memWidth}%"></div></div>
-          <span class="mini-value">${memVal}</span>
-        </div>
-      </div>
-      ${net}
+  row.innerHTML = `
+    <div class="guest-row-head">
+      <span class="guest-dot"></span>
+      <span class="guest-name">${escapeHtml(g.name)}</span>
+      <span class="guest-type">${g.type}</span>
+      <span class="guest-vmid">${g.vmid}</span>
+      <span class="guest-uptime">${uptime}</span>
+      <div class="guest-launchers"></div>
     </div>
+    <div class="guest-stats">
+      <div class="mini-stat">
+        <span class="mini-label">CPU</span>
+        <div class="mini-bar"><div class="mini-fill" data-level="${cpuLevel}" style="width:${cpuWidth}%"></div></div>
+        <span class="mini-value">${cpuVal}</span>
+      </div>
+      <div class="mini-stat">
+        <span class="mini-label">MEM</span>
+        <div class="mini-bar"><div class="mini-fill" data-level="${memLevel}" style="width:${memWidth}%"></div></div>
+        <span class="mini-value">${memVal}</span>
+      </div>
+    </div>
+    ${net}
   `;
+  const launchers = row.querySelector('.guest-launchers');
+  for (const svc of services) {
+    launchers.appendChild(buildLauncher(svc, 'guest-launcher'));
+  }
+  return row;
 }
 function setStat(card, metric, pct, valueText) {
   const row = card.querySelector(`.stat-row[data-metric="${metric}"]`);
