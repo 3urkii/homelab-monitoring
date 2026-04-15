@@ -7,18 +7,15 @@ const startTs = Date.now() / 1000;
 const devConfig = {
   server: { pollIntervalMs: 3000, serviceTimeoutMs: 1000, proxmoxTimeoutMs: 2000, nodeExporterTimeoutMs: 2000 },
   machines: [
-    { name: 'proxmox-dmz',      type: 'proxmox' },
-    { name: 'proxmox-internal', type: 'proxmox' },
-    { name: 'nas',              type: 'node_exporter' },
+    { name: 'proxmox-dmz',      type: 'proxmox',       primaryUrl: 'https://demo-proxmox-dmz.invalid:8006' },
+    { name: 'proxmox-internal', type: 'proxmox',       primaryUrl: 'https://demo-proxmox-internal.invalid:8006' },
+    { name: 'nas',              type: 'node_exporter', primaryUrl: 'http://demo-nas.invalid' },
   ],
   services: [
-    { name: 'Proxmox DMZ',      machine: 'proxmox-dmz',      url: 'http://127.0.0.1:1', icon: 'proxmox-light.svg'      },
-    { name: 'Mealie',           machine: 'proxmox-dmz',      url: 'http://127.0.0.1:1', icon: 'mealie-light.svg'       },
-    { name: 'Proxmox Internal', machine: 'proxmox-internal', url: 'http://127.0.0.1:1', icon: 'proxmox-light.svg'      },
-    { name: 'Plex',             machine: 'proxmox-internal', url: 'http://127.0.0.1:1', icon: 'plex-light.svg'         },
-    { name: 'netboot.xyz',      machine: 'proxmox-internal', url: 'http://127.0.0.1:1', icon: 'netboot.svg'            },
-    { name: 'Dashboard',        machine: 'proxmox-internal', url: 'http://127.0.0.1:1', icon: 'dashboard.svg'          },
-    { name: 'TrueNAS',          machine: 'nas',              url: 'http://127.0.0.1:1', icon: 'truenas-core-light.svg' },
+    { name: 'Mealie',      machine: 'proxmox-dmz',      url: 'http://127.0.0.1:1', icon: 'mealie-light.svg', guest: 'mealie-lxc' },
+    { name: 'Plex',        machine: 'proxmox-internal', url: 'http://127.0.0.1:1', icon: 'plex-light.svg',   guest: 'plex-lxc'   },
+    { name: 'netboot.xyz', machine: 'proxmox-internal', url: 'http://127.0.0.1:1', icon: 'netboot.svg'   },
+    { name: 'Dashboard',   machine: 'proxmox-internal', url: 'http://127.0.0.1:1', icon: 'dashboard.svg',    guest: 'dashboard'  },
   ],
 };
 
@@ -46,11 +43,12 @@ async function mockProxmox(entry) {
     },
     guests: isDmz
       ? [
-          { vmid: 101, name: 'mc-server', type: 'lxc',  status: 'running', cpuPct: drift(45, 15, 0.4),  memUsed: 3.2e9, memTotal: 4e9,   diskUsed: 12e9,  diskTotal: 20e9, uptime: 432000, _cumulative: { netRxBytes: 1_500_000 * elapsedSec, netTxBytes: 800_000 * elapsedSec } },
-          { vmid: 102, name: 'val-srv',   type: 'lxc',  status: 'running', cpuPct: drift(60, 20, 0.5),  memUsed: 3.6e9, memTotal: 4e9,   diskUsed: 15e9,  diskTotal: 20e9, uptime: 200000, _cumulative: { netRxBytes: 4_000_000 * elapsedSec, netTxBytes: 2_500_000 * elapsedSec } },
-          { vmid: 103, name: 'cs2-srv',   type: 'lxc',  status: 'running', cpuPct: drift(30, 15, 0.35), memUsed: 2.1e9, memTotal: 4e9,   diskUsed: 18e9,  diskTotal: 20e9, uptime: 120000, _cumulative: { netRxBytes: 6_000_000 * elapsedSec, netTxBytes: 3_200_000 * elapsedSec } },
-          { vmid: 104, name: 'rust-srv',  type: 'lxc',  status: 'stopped', cpuPct: 0,                   memUsed: 0,     memTotal: 6e9,   diskUsed: 22e9,  diskTotal: 40e9, uptime: 0,      _cumulative: { netRxBytes: 0, netTxBytes: 0 } },
-          { vmid: 301, name: 'win-srv',   type: 'qemu', status: 'stopped', cpuPct: 0,                   memUsed: 0,     memTotal: 8e9,   diskUsed: 0,     diskTotal: 0,    uptime: 0,      _cumulative: { netRxBytes: 0, netTxBytes: 0 } },
+          { vmid: 101, name: 'mc-server',  type: 'lxc',  status: 'running', cpuPct: drift(45, 15, 0.4),  memUsed: 3.2e9, memTotal: 4e9,   diskUsed: 12e9,  diskTotal: 20e9, uptime: 432000, _cumulative: { netRxBytes: 1_500_000 * elapsedSec, netTxBytes: 800_000 * elapsedSec } },
+          { vmid: 102, name: 'val-srv',    type: 'lxc',  status: 'running', cpuPct: drift(60, 20, 0.5),  memUsed: 3.6e9, memTotal: 4e9,   diskUsed: 15e9,  diskTotal: 20e9, uptime: 200000, _cumulative: { netRxBytes: 4_000_000 * elapsedSec, netTxBytes: 2_500_000 * elapsedSec } },
+          { vmid: 103, name: 'cs2-srv',    type: 'lxc',  status: 'running', cpuPct: drift(30, 15, 0.35), memUsed: 2.1e9, memTotal: 4e9,   diskUsed: 18e9,  diskTotal: 20e9, uptime: 120000, _cumulative: { netRxBytes: 6_000_000 * elapsedSec, netTxBytes: 3_200_000 * elapsedSec } },
+          { vmid: 105, name: 'mealie-lxc', type: 'lxc',  status: 'running', cpuPct: drift(4,  2, 0.3),   memUsed: 340e6, memTotal: 1e9,   diskUsed: 2.4e9, diskTotal: 10e9, uptime: 350000, _cumulative: { netRxBytes: 80_000 * elapsedSec,    netTxBytes: 60_000 * elapsedSec } },
+          { vmid: 104, name: 'rust-srv',   type: 'lxc',  status: 'stopped', cpuPct: 0,                   memUsed: 0,     memTotal: 6e9,   diskUsed: 22e9,  diskTotal: 40e9, uptime: 0,      _cumulative: { netRxBytes: 0, netTxBytes: 0 } },
+          { vmid: 301, name: 'win-srv',    type: 'qemu', status: 'stopped', cpuPct: 0,                   memUsed: 0,     memTotal: 8e9,   diskUsed: 0,     diskTotal: 0,    uptime: 0,      _cumulative: { netRxBytes: 0, netTxBytes: 0 } },
         ]
       : [
           { vmid: 201, name: 'plex-lxc',  type: 'lxc',  status: 'running', cpuPct: drift(12, 8, 0.25),  memUsed: 2.4e9, memTotal: 4e9,   diskUsed: 5.5e9, diskTotal: 20e9, uptime: 700000, _cumulative: { netRxBytes: 300_000 * elapsedSec, netTxBytes: 10_000_000 * elapsedSec } },
