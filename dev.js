@@ -1,6 +1,15 @@
 const express = require('express');
 const path = require('node:path');
+const fs = require('node:fs');
 const { Poller } = require('./lib/poller.js');
+const { Storage, METRIC_COLUMNS } = require('./lib/storage.js');
+
+const RANGE_PRESETS = {
+  '1h':  60 * 60 * 1000,
+  '24h': 24 * 60 * 60 * 1000,
+  '7d':  7  * 24 * 60 * 60 * 1000,
+  '30d': 30 * 24 * 60 * 60 * 1000,
+};
 
 const startTs = Date.now() / 1000;
 
@@ -89,19 +98,44 @@ async function mockServicePing(svc) {
   return { status, responseTime: status === 'up' ? Math.floor(20 + Math.random() * 80) : null };
 }
 
+const dataDir = path.join(__dirname, 'data');
+if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
+const storage = new Storage(path.join(dataDir, 'dev.db'));
+
 const poller = new Poller(devConfig, {
   scrapers: { proxmox: mockProxmox, node_exporter: mockNodeExporter },
-  servicePing: mockServicePing,
+  storage,
 });
 poller.start();
 
 const app = express();
 app.get('/api/stats', (_req, res) => res.json(poller.getState()));
-app.get('/api/ping',  (_req, res) => res.json({ services: poller.getState().services }));
+
+app.get('/api/history', (req, res) => {
+  try {
+    const { machine, guest, range } = req.query;
+    const metrics = String(req.query.metrics ?? 'cpu,memUsed,memTotal,diskUsed,diskTotal,netRx,netTx')
+      .split(',').map((s) => s.trim()).filter(Boolean);
+    if (!machine) return res.status(400).json({ error: 'machine query param is required' });
+    const rangeMs = RANGE_PRESETS[range] ?? RANGE_PRESETS['24h'];
+    const toTs = Date.now();
+    const fromTs = toTs - rangeMs;
+    const result = {};
+    for (const metric of metrics) {
+      if (!METRIC_COLUMNS[metric]) return res.status(400).json({ error: `unknown metric: ${metric}` });
+      result[metric] = storage.query({ machine, guest: guest || null, metric, fromTs, toTs });
+    }
+    res.json({ machine, guest: guest || null, range, fromTs, toTs, metrics: result });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.use(express.static(path.join(__dirname, 'public')));
 
 const port = Number(process.env.PORT) || 3000;
 app.listen(port, () => {
   console.log(`[dev] homelab-dashboard dev server on http://localhost:${port}`);
   console.log(`[dev] mocked scrapers drifting every ${devConfig.server.pollIntervalMs}ms`);
+  console.log(`[dev] storage at ${path.join(dataDir, 'dev.db')}`);
 });

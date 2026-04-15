@@ -188,6 +188,42 @@ test('Poller.tick: computes per-guest network rates across consecutive ticks', a
   assert.equal(cs2._cumulative, undefined);
 });
 
+test('Poller: persists samples to injected storage on each tick', async () => {
+  const config = {
+    server: { pollIntervalMs: 10_000 },
+    machines: [
+      { name: 'proxmox-dmz', type: 'proxmox' },
+    ],
+  };
+  const scraped = {
+    host: {
+      cpuPct: 15, memUsed: 800, memTotal: 1000, diskUsed: 100, diskTotal: 200,
+      uptime: 3600, loadavg: [0.1, 0.2, 0.3],
+      _cumulative: { netRxBytes: 0, netTxBytes: 0 },
+    },
+    guests: [
+      { vmid: 101, name: 'mc-server', type: 'lxc', status: 'running',
+        cpuPct: 22, memUsed: 400, memTotal: 500, diskUsed: 10, diskTotal: 20, uptime: 100,
+        _cumulative: { netRxBytes: 0, netTxBytes: 0 } },
+    ],
+  };
+  const captured = [];
+  const storage = { insertBatch: (rows) => captured.push(...rows) };
+  const poller = new Poller(config, {
+    scrapers: { proxmox: async () => scraped },
+    storage,
+  });
+  await poller.tick();
+  assert.equal(captured.length, 2, 'should persist 1 host + 1 guest sample');
+  const host = captured.find((s) => s.guest === null);
+  const guest = captured.find((s) => s.guest === 'mc-server');
+  assert.equal(host.machine, 'proxmox-dmz');
+  assert.equal(host.cpuPct, 15);
+  assert.equal(host.memUsed, 800);
+  assert.equal(guest.cpuPct, 22);
+  assert.equal(guest.memUsed, 400);
+});
+
 test('Poller: overlays guestLinks url/icon onto matching auto-discovered guests', async () => {
   const config = {
     server: { pollIntervalMs: 10_000 },

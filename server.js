@@ -1,8 +1,18 @@
 const path = require('node:path');
+const fs = require('node:fs');
 const express = require('express');
 const { Poller } = require('./lib/poller.js');
+const { Storage, METRIC_COLUMNS } = require('./lib/storage.js');
 const proxmox = require('./lib/proxmox.js');
 const nodeExporter = require('./lib/node_exporter.js');
+
+const ROLLUP_INTERVAL_MS = 5 * 60 * 1000; // every 5 minutes
+const RANGE_PRESETS = {
+  '1h':  60 * 60 * 1000,
+  '24h': 24 * 60 * 60 * 1000,
+  '7d':  7  * 24 * 60 * 60 * 1000,
+  '30d': 30 * 24 * 60 * 60 * 1000,
+};
 
 function validateConfig(cfg) {
   const errors = [];
@@ -41,21 +51,65 @@ function main() {
     process.exit(1);
   }
 
+  const dataDir = path.join(__dirname, 'data');
+  if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
+  const storage = new Storage(path.join(dataDir, 'dashboard.db'));
+  setInterval(() => {
+    try {
+      storage.rollup();
+    } catch (err) {
+      console.error(`[storage] rollup failed: ${err.message}`);
+    }
+  }, ROLLUP_INTERVAL_MS);
+
   const poller = new Poller(config, {
     scrapers: {
       proxmox: (entry) => proxmox.fetch({ ...entry, proxmoxTimeoutMs: config.server.proxmoxTimeoutMs }),
       node_exporter: (entry) => nodeExporter.fetch({ ...entry, nodeExporterTimeoutMs: config.server.nodeExporterTimeoutMs }),
     },
+    storage,
   });
   poller.start();
 
   const app = express();
   app.get('/api/stats', (_req, res) => res.json(poller.getState()));
+
+  app.get('/api/history', (req, res) => {
+    try {
+      const { machine, guest, range } = req.query;
+      const metrics = String(req.query.metrics ?? 'cpu,memUsed,memTotal,diskUsed,diskTotal,netRx,netTx')
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean);
+      if (!machine) return res.status(400).json({ error: 'machine query param is required' });
+      const rangeMs = RANGE_PRESETS[range] ?? RANGE_PRESETS['24h'];
+      const toTs = Date.now();
+      const fromTs = toTs - rangeMs;
+      const result = {};
+      for (const metric of metrics) {
+        if (!METRIC_COLUMNS[metric]) {
+          return res.status(400).json({ error: `unknown metric: ${metric}` });
+        }
+        result[metric] = storage.query({
+          machine,
+          guest: guest || null,
+          metric,
+          fromTs,
+          toTs,
+        });
+      }
+      res.json({ machine, guest: guest || null, range, fromTs, toTs, metrics: result });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   app.use(express.static(path.join(__dirname, 'public')));
 
   app.listen(config.server.port, () => {
     console.log(`[dashboard] listening on http://0.0.0.0:${config.server.port}`);
     console.log(`[dashboard] polling every ${config.server.pollIntervalMs}ms`);
+    console.log(`[dashboard] storage at ${path.join(dataDir, 'dashboard.db')}`);
   });
 }
 
