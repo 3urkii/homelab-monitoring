@@ -49,9 +49,12 @@ Edit `config.js`. Replace every `REPLACE_ME` with actual values:
 
 - `machines[].host` — IP address of the machine
 - `machines[].tokenSecret` — Proxmox API token secret (Proxmox entries only)
-- `services[].url` — full URL of each service
+- `machines[].primaryUrl` — optional; makes the machine card name a clickable link to the web UI
+- `guestLinks[]` — optional; overlay a URL + icon onto an auto-discovered LXC/VM so its row becomes clickable
 
-The `name` field on each `machines[]` entry must match the **Proxmox node hostname** exactly (visible in the Proxmox UI under Datacenter → Summary).
+The `name` field on each `machines[]` entry must match the **Proxmox node hostname** exactly (visible in the Proxmox UI under Datacenter → Summary). For `guestLinks`, the `guest` field must match the LXC/VM name in Proxmox.
+
+**Guests are auto-discovered.** Every LXC and VM on your Proxmox hosts appears in the dashboard with live stats — no config needed. You only add `guestLinks` entries for guests you want to make clickable.
 
 ## Run
 
@@ -78,7 +81,23 @@ Logs: `journalctl -u homelab-dashboard -f`
 
 ## Service icons
 
-Drop SVG files into `public/icons/` matching the `icon` filenames in `config.js` (e.g. `plex.svg`, `pve.svg`). If a file is missing, the frontend falls back to a 3-character text label derived from the service name.
+Drop SVG files into `public/icons/` matching the `icon` filenames in `guestLinks[]` (e.g. `plex-light.svg`). Missing files fall back to a 3-character text label derived from the guest name. Browse `selfh.st/icons/` for an open-source icon pack covering most self-hosted services.
+
+## Historical graphs
+
+Every poll persists CPU / memory / disk / network for every machine **and** every auto-discovered guest into a local SQLite file at `data/dashboard.db`. Click the graph button on any machine card or guest row to open a chart modal with a range picker (1h / 24h / 7d / 30d), overlaid CPU, memory, rx, and tx lines, and drag-to-zoom.
+
+Retention is tiered to keep disk use bounded:
+
+| Tier | Resolution | Retention |
+|---|---|---|
+| Hot | 10s | 24 hours |
+| Warm | 1 minute | 7 days |
+| Cold | 10 minutes | 30 days |
+
+A background rollup runs every 5 minutes: data aging out of a tier is averaged into the next tier, then the previous tier is pruned. Expected steady-state disk footprint is roughly **60 MB for 25 entities**, scaling linearly (~100 MB at 40, ~150 MB at 60).
+
+`data/` is in `.gitignore` and backed by SQLite WAL — safe across restarts, no migration needed when the schema is unchanged.
 
 ## Known limitations
 
@@ -86,13 +105,15 @@ Drop SVG files into `public/icons/` matching the `icon` filenames in `config.js`
 - **First poll after startup** shows `—` for network rates and node_exporter CPU% because rate calculation needs two samples.
 - **No authentication** — deploy only on an internal network.
 - **HTTP only** — no TLS termination; put it behind a reverse proxy if you need HTTPS.
+- **uPlot is loaded from a CDN** on first chart open (jsDelivr). The dashboard runs fine without internet, but clicking a chart button on an offline host will show a load error.
 
 ## Architecture
 
 See `docs/superpowers/specs/2026-04-15-homelab-dashboard-design.md` for the design document.
 
-- `server.js` — Express wiring, config validation, routes, service ping
-- `lib/poller.js` — interval loop, in-memory cache, rate calculation, error isolation
+- `server.js` — Express wiring, config validation, routes, storage, rollup job
+- `lib/poller.js` — interval loop, in-memory cache, rate calculation, error isolation, persistence
+- `lib/storage.js` — SQLite time-series store with tiered retention
 - `lib/proxmox.js` — Proxmox API client (`/cluster/resources` + `/nodes/<name>/status`)
 - `lib/node_exporter.js` — Prometheus text parser + HTTP fetch
-- `public/index.html` — self-contained frontend (Dracula palette, JetBrains Mono, Rajdhani)
+- `public/index.html` — self-contained frontend (Dracula palette, JetBrains Mono, Rajdhani, uPlot modal)

@@ -20,7 +20,7 @@ NoNewPrivileges=true
 ProtectSystem=strict
 ProtectHome=true
 PrivateTmp=true
-ReadWritePaths=/opt/homelab-monitoring/logs
+ReadWritePaths=/opt/homelab-monitoring/data /opt/homelab-monitoring/logs
 
 [Install]
 WantedBy=multi-user.target
