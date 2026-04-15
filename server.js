@@ -2,6 +2,7 @@ const path = require('node:path');
 const fs = require('node:fs');
 const express = require('express');
 const { Poller } = require('./lib/poller.js');
+const { AlertManager } = require('./lib/alerts.js');
 const { Storage, METRIC_COLUMNS } = require('./lib/storage.js');
 const proxmox = require('./lib/proxmox.js');
 const nodeExporter = require('./lib/node_exporter.js');
@@ -36,6 +37,25 @@ function validateConfig(cfg) {
     if (!l.guest) errors.push(`guestLinks[${i}].guest is required`);
     if (!l.url) errors.push(`guestLinks[${i}].url is required`);
   }
+  if (cfg.alerts !== undefined) {
+    const a = cfg.alerts;
+    if (!a || typeof a !== 'object') errors.push('alerts must be an object');
+    if (!a.ntfy || typeof a.ntfy.url !== 'string' || !a.ntfy.url || a.ntfy.url.includes('REPLACE_ME')) {
+      errors.push('alerts.ntfy.url must be a non-empty URL');
+    }
+    if (!a.defaults || typeof a.defaults !== 'object') {
+      errors.push('alerts.defaults must be an object');
+    } else {
+      for (const k of ['cpuPct', 'memPct', 'diskPct']) {
+        const v = a.defaults[k];
+        if (typeof v !== 'number' || v < 0 || v > 100) errors.push(`alerts.defaults.${k} must be a number in [0,100]`);
+      }
+      if (typeof a.defaults.forMs !== 'number' || a.defaults.forMs <= 0) errors.push('alerts.defaults.forMs must be a positive number');
+    }
+    for (const [i, o] of (a.overrides ?? []).entries()) {
+      if (!o.machine || !machineNames.has(o.machine)) errors.push(`alerts.overrides[${i}].machine '${o.machine}' not in machines`);
+    }
+  }
   if (errors.length) {
     throw new Error('config.js validation failed:\n  - ' + errors.join('\n  - '));
   }
@@ -57,10 +77,15 @@ function main() {
   setInterval(() => {
     try {
       storage.rollup();
+      storage.pruneAlertEvents();
     } catch (err) {
       console.error(`[storage] rollup failed: ${err.message}`);
     }
   }, ROLLUP_INTERVAL_MS);
+
+  const alertManager = config.alerts
+    ? new AlertManager({ config: config.alerts, storage })
+    : null;
 
   const poller = new Poller(config, {
     scrapers: {
@@ -68,6 +93,7 @@ function main() {
       node_exporter: (entry) => nodeExporter.fetch({ ...entry, nodeExporterTimeoutMs: config.server.nodeExporterTimeoutMs }),
     },
     storage,
+    alertManager,
   });
   poller.start();
 
@@ -99,6 +125,25 @@ function main() {
         });
       }
       res.json({ machine, guest: guest || null, range, fromTs, toTs, metrics: result });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.get('/api/alerts', (req, res) => {
+    try {
+      const limit = Math.min(500, Math.max(1, parseInt(req.query.limit ?? '100', 10) || 100));
+      const machine = req.query.machine || null;
+      const guest = req.query.guest || null;
+      res.json({ events: storage.listAlertEvents({ limit, machine, guest }) });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.get('/api/alerts/active', (_req, res) => {
+    try {
+      res.json({ active: alertManager ? alertManager.getActive() : [] });
     } catch (err) {
       res.status(500).json({ error: err.message });
     }

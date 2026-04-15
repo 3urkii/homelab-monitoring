@@ -45,4 +45,27 @@ module.exports = {
     // { machine: "proxmox-internal", guest: "plex-lxc",   url: "http://REPLACE_ME:32400/web", icon: "plex-light.svg"   },
     // { machine: "proxmox-internal", guest: "dashboard",  url: "http://REPLACE_ME:3000",      icon: "dashboard.svg"    },
   ],
+
+  // Alerting via ntfy. Remove this block (or leave it out) to disable alerts.
+  // ntfy topics are their own auth — keep the URL private.
+  alerts: {
+    ntfy: {
+      url: "https://ntfy.sh/REPLACE_ME",
+      firingPriority: "high",
+      resolvedPriority: "default",
+      firingTags: ["warning"],
+      resolvedTags: ["white_check_mark"],
+    },
+    defaults: {
+      cpuPct: 90,
+      memPct: 90,
+      diskPct: 90,
+      forMs: 5 * 60 * 1000,
+      reachability: true,
+    },
+    overrides: [
+      // { machine: "nas",              diskPct: 98 },
+      // { machine: "proxmox-internal", guest: "plex-lxc", cpuPct: 95 },
+    ],
+  },
 };
