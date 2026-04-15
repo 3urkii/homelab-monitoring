@@ -453,6 +453,52 @@ footer .prompt { color: var(--green); margin-right: 0.5ch; }
   .refresh:active,
   .inner-service-item:active { transform: none; }
 }
+.alerts-section {
+  margin: 1.5rem 2rem;
+  padding: 1rem 1.25rem;
+  background: var(--surface);
+  border: 1px solid var(--current-line);
+  border-radius: 6px;
+  font-family: "JetBrains Mono", monospace;
+}
+.alerts-section h2 {
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--comment);
+  margin-bottom: 0.75rem;
+}
+.alerts-active-list,
+.alerts-history-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+.alert-row {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 0.75rem;
+  align-items: center;
+  padding: 0.35rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.85rem;
+}
+.alert-row.firing { background: rgba(255, 85, 85, 0.08); color: var(--red); }
+.alert-row.resolved { color: var(--green); }
+.alert-row .target { color: var(--fg); }
+.alert-row .meta { color: var(--comment); font-size: 0.78rem; }
+.alerts-empty { color: var(--comment); font-size: 0.85rem; font-style: italic; }
+.alerts-history details > summary {
+  cursor: pointer;
+  color: var(--comment);
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding: 0.5rem 0;
+  user-select: none;
+}
 </style>
 </head>
 <body>
@@ -464,6 +510,16 @@ footer .prompt { color: var(--green); margin-right: 0.5ch; }
 </header>
 <main>
   <div class="error-banner" id="errorBanner">stats stale — retrying</div>
+  <section class="alerts-section" id="alerts-section" hidden>
+    <h2>Active Alerts</h2>
+    <ul class="alerts-active-list" id="alerts-active"></ul>
+    <div class="alerts-history">
+      <details>
+        <summary>History</summary>
+        <ul class="alerts-history-list" id="alerts-history"></ul>
+      </details>
+    </div>
+  </section>
   <section>
     <div class="section-title"><span class="accent">&gt;</span>MACHINES</div>
     <div class="machines-grid" id="machinesGrid"></div>
@@ -883,9 +939,72 @@ document.getElementById('machinesGrid').addEventListener('click', (e) => {
   openChart({ machine, guest });
 });
 
+async function refreshAlerts() {
+  try {
+    const [activeRes, historyRes] = await Promise.all([
+      fetch('/api/alerts/active'),
+      fetch('/api/alerts?limit=50'),
+    ]);
+    if (!activeRes.ok || !historyRes.ok) return;
+    const { active } = await activeRes.json();
+    const { events } = await historyRes.json();
+    renderAlerts(active, events);
+  } catch (err) {
+    // silent — alerts are optional
+  }
+}
+
+function renderAlerts(active, events) {
+  const section = document.getElementById('alerts-section');
+  const activeList = document.getElementById('alerts-active');
+  const historyList = document.getElementById('alerts-history');
+  section.hidden = false;
+
+  activeList.innerHTML = '';
+  if (!active || active.length === 0) {
+    const li = document.createElement('li');
+    li.className = 'alerts-empty';
+    li.textContent = 'All clear.';
+    activeList.appendChild(li);
+  } else {
+    for (const a of active) {
+      const li = document.createElement('li');
+      li.className = 'alert-row firing';
+      const target = a.guest ? `${escapeHtml(a.machine)}/${escapeHtml(a.guest)}` : escapeHtml(a.machine);
+      const pct = a.value == null ? '' : `${Math.round(a.value)}%`;
+      const thr = a.threshold == null ? '' : `≥ ${a.threshold}%`;
+      const dur = a.since ? `firing for ${formatDuration(Date.now() - a.since)}` : '';
+      li.innerHTML = `<span>●</span><span class="target">${target} ${escapeHtml(a.metric)} ${pct} ${thr}</span><span class="meta">${dur}</span>`;
+      activeList.appendChild(li);
+    }
+  }
+
+  historyList.innerHTML = '';
+  for (const e of events) {
+    const li = document.createElement('li');
+    li.className = `alert-row ${e.kind === 'firing' ? 'firing' : 'resolved'}`;
+    const target = e.guest ? `${escapeHtml(e.machine)}/${escapeHtml(e.guest)}` : escapeHtml(e.machine);
+    const pct = e.value == null ? '' : `${Math.round(e.value)}%`;
+    const ts = new Date(e.ts).toLocaleString();
+    const mark = e.kind === 'firing' ? '▲' : '▼';
+    li.innerHTML = `<span>${mark}</span><span class="target">${target} ${escapeHtml(e.metric)} ${pct}</span><span class="meta">${ts}</span>`;
+    historyList.appendChild(li);
+  }
+}
+
+function formatDuration(ms) {
+  const s = Math.floor(ms / 1000);
+  if (s < 60) return `${s}s`;
+  const m = Math.floor(s / 60);
+  if (m < 60) return `${m}m`;
+  const h = Math.floor(m / 60);
+  return `${h}h ${m % 60}m`;
+}
+
 document.getElementById('refreshBtn').addEventListener('click', fetchStats);
 fetchStats();
-setInterval(fetchStats, POLL_INTERVAL_MS);
+refreshAlerts();
+setInterval(() => { fetchStats(); refreshAlerts(); }, POLL_INTERVAL_MS);
 </script>
 </body>
 </html>
