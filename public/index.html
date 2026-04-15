@@ -595,9 +595,10 @@ function renderMachineCard(machine, state) {
   card.className = 'card';
   card.dataset.machine = machine.name;
   card.dataset.status = state.status;
+  const display = state.label ?? machine.name;
   const nameHtml = state.primaryUrl
-    ? `<a class="card-name card-name-link" href="${escapeHtml(state.primaryUrl)}" target="_blank" rel="noopener">${escapeHtml(machine.name)}</a>`
-    : `<span class="card-name">${escapeHtml(machine.name)}</span>`;
+    ? `<a class="card-name card-name-link" href="${escapeHtml(state.primaryUrl)}" target="_blank" rel="noopener">${escapeHtml(display)}</a>`
+    : `<span class="card-name">${escapeHtml(display)}</span>`;
   card.innerHTML = `
     <div class="card-header">
       <span class="card-status-dot"></span>

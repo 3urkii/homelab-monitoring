@@ -294,3 +294,24 @@ test('AlertManager.#notify: non-2xx ntfy response logs error but does not throw'
     console.error = origErr;
   }
 });
+
+test('AlertManager.evaluate: ntfy title uses machine.label when set', async () => {
+  const calls = [];
+  const storage = new Storage(':memory:');
+  const mgr = new AlertManager({
+    config: mkConfig(),
+    storage,
+    fetch: async (url, opts) => { calls.push({ url, opts }); return { ok: true }; },
+  });
+  const hot = { cpuPct: 95, memUsed: 0, memTotal: 100, diskUsed: 0, diskTotal: 100 };
+  const labeledState = {
+    lastPoll: null, globalStatus: 'up',
+    machines: { 'pve01': { type: 'proxmox', label: 'proxmox-dmz', status: 'up', host: hot, guests: [] } },
+  };
+  await mgr.evaluate(labeledState, 0);
+  await mgr.evaluate(labeledState, 60_000);
+  assert.equal(calls.length, 1);
+  assert.match(calls[0].opts.headers.Title, /FIRING.*proxmox-dmz.*cpu/);
+  assert.doesNotMatch(calls[0].opts.headers.Title, /pve01/);
+  storage.close();
+});

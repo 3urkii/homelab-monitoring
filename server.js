@@ -30,6 +30,7 @@ function validateConfig(cfg) {
       if (!m.tokenSecret || m.tokenSecret === 'REPLACE_ME') errors.push(`machines[${i}].tokenSecret must be set`);
     }
     if (m.type === 'node_exporter' && !m.port) errors.push(`machines[${i}].port required for node_exporter`);
+    if (m.label !== undefined && (typeof m.label !== 'string' || !m.label)) errors.push(`machines[${i}].label must be a non-empty string if set`);
     machineNames.add(m.name);
   }
   for (const [i, l] of (cfg.guestLinks ?? []).entries()) {

@@ -31,12 +31,12 @@ The token's full ID is `dashboard@pve!readonly` and goes in `config.js` as `toke
 
 Edit `config.js`. Replace every `REPLACE_ME` with actual values:
 
-- `machines[].host` — IP address of the machine
-- `machines[].tokenSecret` — Proxmox API token secret (Proxmox entries only)
+- `machines[].name` — **must match the Proxmox node hostname exactly** (visible in the Proxmox UI under Datacenter → Summary). Used in the Proxmox API paths and to filter `/cluster/resources`.
+- `machines[].label` — optional; friendlier display name shown on the dashboard card and in ntfy alert titles. Defaults to `name`.
+- `machines[].host` — IP address or DNS name of the Proxmox node
+- `machines[].tokenSecret` — Proxmox API token secret
 - `machines[].primaryUrl` — optional; makes the machine card name a clickable link to the web UI
-- `guestLinks[]` — optional; overlay a URL + icon onto an auto-discovered LXC/VM so its row becomes clickable
-
-The `name` field on each `machines[]` entry must match the **Proxmox node hostname** exactly (visible in the Proxmox UI under Datacenter → Summary). For `guestLinks`, the `guest` field must match the LXC/VM name in Proxmox.
+- `guestLinks[]` — optional; overlay a URL + icon onto an auto-discovered LXC/VM so its row becomes clickable. The `guest` field must match the LXC/VM name in Proxmox.
 
 **Guests are auto-discovered.** Every LXC and VM on your Proxmox hosts appears in the dashboard with live stats — no config needed. You only add `guestLinks` entries for guests you want to make clickable.
 

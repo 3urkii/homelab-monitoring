@@ -9,7 +9,10 @@ module.exports = {
 
   machines: [
     {
-      name: "proxmox-dmz",
+      // `name` MUST be the actual Proxmox node hostname (used in API paths + /cluster/resources filtering).
+      // `label` is optional — a friendlier display name for the dashboard card and ntfy titles. Defaults to `name`.
+      name: "REPLACE_ME",        // e.g. "pve01" — the PVE node hostname
+      label: "proxmox-dmz",      // e.g. "proxmox-dmz" — shown on the card
       type: "proxmox",
       host: "REPLACE_ME",        // e.g. "10.0.20.10"
       port: 8006,
@@ -19,7 +22,8 @@ module.exports = {
       primaryUrl: "https://REPLACE_ME:8006", // click the card name to open the PVE web UI
     },
     {
-      name: "proxmox-internal",
+      name: "REPLACE_ME",
+      label: "proxmox-internal",
       type: "proxmox",
       host: "REPLACE_ME",
       port: 8006,
