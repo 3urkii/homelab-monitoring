@@ -34,3 +34,9 @@ test('parseMetrics: cpu seconds (idle + total across all cores and modes)', () =
   // total = idle + iowait + system + user = 24745.79 + 18.6 + 396.0 + 996.2 = 26156.59
   assert.equal(result.cpuTotalSeconds.toFixed(2), '26156.59');
 });
+
+test('parseMetrics: boot time and load averages', () => {
+  const result = parseMetrics(fixture);
+  assert.equal(result.bootTimeSeconds, 1_700_200_000);
+  assert.deepEqual(result.loadavg, [0.15, 0.22, 0.18]);
+});
