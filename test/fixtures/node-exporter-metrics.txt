@@ -1,0 +1,44 @@
+# HELP node_memory_MemTotal_bytes Memory information field MemTotal_bytes.
+# TYPE node_memory_MemTotal_bytes gauge
+node_memory_MemTotal_bytes 1.6777216e+10
+# HELP node_memory_MemAvailable_bytes Memory information field MemAvailable_bytes.
+# TYPE node_memory_MemAvailable_bytes gauge
+node_memory_MemAvailable_bytes 8.388608e+09
+# HELP node_filesystem_size_bytes Filesystem size in bytes.
+# TYPE node_filesystem_size_bytes gauge
+node_filesystem_size_bytes{device="/dev/sda1",fstype="ext4",mountpoint="/"} 1.073741824e+11
+node_filesystem_size_bytes{device="tmpfs",fstype="tmpfs",mountpoint="/run"} 8.38e+08
+# HELP node_filesystem_avail_bytes Filesystem space available to non-root users in bytes.
+# TYPE node_filesystem_avail_bytes gauge
+node_filesystem_avail_bytes{device="/dev/sda1",fstype="ext4",mountpoint="/"} 5.36870912e+10
+node_filesystem_avail_bytes{device="tmpfs",fstype="tmpfs",mountpoint="/run"} 8.38e+08
+# HELP node_network_receive_bytes_total Network device statistic receive_bytes.
+# TYPE node_network_receive_bytes_total counter
+node_network_receive_bytes_total{device="eth0"} 1.234567e+09
+node_network_receive_bytes_total{device="lo"} 1.23e+07
+# HELP node_network_transmit_bytes_total Network device statistic transmit_bytes.
+# TYPE node_network_transmit_bytes_total counter
+node_network_transmit_bytes_total{device="eth0"} 5.678e+08
+node_network_transmit_bytes_total{device="lo"} 1.23e+07
+# HELP node_cpu_seconds_total Seconds the CPUs spent in each mode.
+# TYPE node_cpu_seconds_total counter
+node_cpu_seconds_total{cpu="0",mode="idle"} 12345.67
+node_cpu_seconds_total{cpu="0",mode="iowait"} 10.5
+node_cpu_seconds_total{cpu="0",mode="system"} 200.3
+node_cpu_seconds_total{cpu="0",mode="user"} 500.8
+node_cpu_seconds_total{cpu="1",mode="idle"} 12400.12
+node_cpu_seconds_total{cpu="1",mode="iowait"} 8.1
+node_cpu_seconds_total{cpu="1",mode="system"} 195.7
+node_cpu_seconds_total{cpu="1",mode="user"} 495.4
+# HELP node_boot_time_seconds Node boot time, in unixtime.
+# TYPE node_boot_time_seconds gauge
+node_boot_time_seconds 1.7002e+09
+# HELP node_load1 1m load average.
+# TYPE node_load1 gauge
+node_load1 0.15
+# HELP node_load5 5m load average.
+# TYPE node_load5 gauge
+node_load5 0.22
+# HELP node_load15 15m load average.
+# TYPE node_load15 gauge
+node_load15 0.18
