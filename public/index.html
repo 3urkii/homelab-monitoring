@@ -139,7 +139,7 @@ main {
 }
 .card-status-dot {
   width: 8px; height: 8px; border-radius: 50%;
-  background: var(--comment); animation: pulse 2.5s ease-in-out infinite;
+  background: var(--comment);
 }
 .card[data-status="up"]   .card-status-dot { background: var(--green); box-shadow: 0 0 6px var(--green); }
 .card[data-status="down"] .card-status-dot { background: var(--red);   box-shadow: 0 0 6px var(--red); }
@@ -147,7 +147,7 @@ main {
 .stat-row { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.35rem; font-family: "JetBrains Mono", monospace; font-size: 0.78rem; }
 .stat-row .label   { color: var(--comment); width: 3.5rem; text-transform: uppercase; }
 .stat-row .bar     { flex: 1; height: 6px; background: var(--current-line); border-radius: 2px; overflow: hidden; }
-.stat-row .bar-fill{ height: 100%; background: var(--purple); width: 0; transition: width 280ms var(--ease-out), background 280ms ease; }
+.stat-row .bar-fill{ height: 100%; background: var(--purple); width: 0; transition: width 280ms var(--ease-in-out), background 280ms ease; }
 .stat-row .value   { color: var(--fg); min-width: 5.5rem; text-align: right; }
 
 .bar-fill[data-level="low"]   { background: var(--purple); }
@@ -248,7 +248,6 @@ a.guest-row:active { transform: scale(0.99); }
 }
 .guest-row-head .guest-dot {
   width: 6px; height: 6px; border-radius: 50%; background: var(--comment);
-  animation: pulse 2.5s ease-in-out infinite;
 }
 .guest-row[data-status="running"] .guest-row-head .guest-dot {
   background: var(--green); box-shadow: 0 0 4px var(--green);
@@ -280,7 +279,7 @@ a.guest-row:active { transform: scale(0.99); }
 }
 .mini-stat .mini-fill {
   height: 100%; background: var(--purple); width: 0;
-  transition: width 280ms var(--ease-out), background 280ms ease;
+  transition: width 280ms var(--ease-in-out), background 280ms ease;
 }
 .mini-fill[data-level="low"]  { background: var(--purple); }
 .mini-fill[data-level="mid"]  { background: var(--cyan); }
@@ -342,6 +341,7 @@ footer .prompt { color: var(--green); margin-right: 0.5ch; }
   pointer-events: none;
   transition: opacity 220ms var(--ease-out);
 }
+.chart-modal.closing { transition-duration: 140ms; }
 .chart-modal.open { opacity: 1; pointer-events: auto; }
 .chart-modal-content {
   background: var(--surface);
@@ -359,6 +359,7 @@ footer .prompt { color: var(--green); margin-right: 0.5ch; }
   opacity: 0;
   transition: transform 260ms var(--ease-out), opacity 220ms var(--ease-out);
 }
+.chart-modal.closing .chart-modal-content { transition-duration: 160ms, 140ms; }
 .chart-modal.open .chart-modal-content { transform: scale(1) translateY(0); opacity: 1; }
 .chart-modal-content::before {
   content: ""; position: absolute; inset-block: 0; left: 0;
@@ -766,15 +767,17 @@ async function openChart(entity) {
 
 function closeChart() {
   const modal = document.getElementById('chartModal');
+  modal.classList.add('closing');
   modal.classList.remove('open');
   setTimeout(() => {
     modal.hidden = true;
+    modal.classList.remove('closing');
     if (chartInstance) {
       chartInstance.destroy();
       chartInstance = null;
     }
     chartEntity = null;
-  }, 240);
+  }, 160);
 }
 
 async function fetchAndRenderChart() {
