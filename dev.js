@@ -12,13 +12,13 @@ const devConfig = {
     { name: 'nas',              type: 'node_exporter' },
   ],
   services: [
-    { name: 'Proxmox DMZ',      machine: 'proxmox-dmz',      url: 'http://127.0.0.1:1', icon: 'pve.svg'       },
-    { name: 'Mealie',           machine: 'proxmox-dmz',      url: 'http://127.0.0.1:1', icon: 'mealie.svg'    },
-    { name: 'Proxmox Internal', machine: 'proxmox-internal', url: 'http://127.0.0.1:1', icon: 'pve.svg'       },
-    { name: 'Plex',             machine: 'proxmox-internal', url: 'http://127.0.0.1:1', icon: 'plex.svg'      },
-    { name: 'netboot.xyz',      machine: 'proxmox-internal', url: 'http://127.0.0.1:1', icon: 'netboot.svg'   },
-    { name: 'Dashboard',        machine: 'proxmox-internal', url: 'http://127.0.0.1:1', icon: 'dashboard.svg' },
-    { name: 'TrueNAS',          machine: 'nas',              url: 'http://127.0.0.1:1', icon: 'truenas.svg'   },
+    { name: 'Proxmox DMZ',      machine: 'proxmox-dmz',      url: 'http://127.0.0.1:1', icon: 'proxmox-light.svg'      },
+    { name: 'Mealie',           machine: 'proxmox-dmz',      url: 'http://127.0.0.1:1', icon: 'mealie-light.svg'       },
+    { name: 'Proxmox Internal', machine: 'proxmox-internal', url: 'http://127.0.0.1:1', icon: 'proxmox-light.svg'      },
+    { name: 'Plex',             machine: 'proxmox-internal', url: 'http://127.0.0.1:1', icon: 'plex-light.svg'         },
+    { name: 'netboot.xyz',      machine: 'proxmox-internal', url: 'http://127.0.0.1:1', icon: 'netboot.svg'            },
+    { name: 'Dashboard',        machine: 'proxmox-internal', url: 'http://127.0.0.1:1', icon: 'dashboard.svg'          },
+    { name: 'TrueNAS',          machine: 'nas',              url: 'http://127.0.0.1:1', icon: 'truenas-core-light.svg' },
   ],
 };
 
