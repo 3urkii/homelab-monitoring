@@ -261,16 +261,6 @@ main {
   width: 3px; background: var(--purple); opacity: 0.8;
   border-radius: 4px 0 0 4px;
 }
-.chart-panel-title {
-  font-family: Rajdhani, monospace;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  font-size: 0.85rem;
-  color: var(--fg);
-  text-shadow: 0 0 16px rgba(189,147,249,0.35);
-  margin-bottom: 0.75rem;
-}
 .chart-container {
   height: 380px;
   background: var(--bg-alt);
@@ -605,6 +595,7 @@ function findKeyIndex(keys, metricDef) {
   return -1;
 }
 
+// Both data sources must be sorted ascending by timestamp
 function mergePlayerData(perfPoints, perfKeys, onlineData) {
   var pIdx = perfKeys.indexOf('playersOnline');
   if (pIdx >= 0) return null;
