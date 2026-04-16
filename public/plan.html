@@ -423,7 +423,7 @@ footer .prompt { color: var(--green); margin-right: 0.5ch; }
             <th>Playtime</th>
             <th>Sessions</th>
             <th>Last Seen</th>
-            <th>Activity</th>
+            <th>Activity Index</th>
           </tr>
         </thead>
         <tbody id="playersBody">
@@ -640,13 +640,32 @@ function renderTpsChart(data) {
 }
 
 /* ── Playerbase ── */
+var PB_LABELS = {
+  'html.label.veryActive': 'Very Active',
+  'html.label.active': 'Active',
+  'html.label.indexRegular': 'Regular',
+  'html.label.irregular': 'Irregular',
+  'html.label.indexInactive': 'Inactive',
+};
 var PB_COLORS = {
   'Very Active': 'green', 'Active': 'cyan', 'Regular': 'purple',
-  'Irregular': 'yellow', 'New': 'pink', 'Inactive': 'comment',
+  'Irregular': 'yellow', 'Inactive': 'comment',
 };
 
 function renderPlayerbase(data) {
   var el = document.getElementById('playerbaseGrid');
+  var series = data?.activity_series;
+  if (series && series.length > 0) {
+    el.innerHTML = series.map(function (s) {
+      var label = PB_LABELS[s.name] || s.name;
+      var count = s.data && s.data.length > 0 ? s.data[s.data.length - 1] : 0;
+      var color = PB_COLORS[label] || 'fg';
+      return '<div class="playerbase-item" style="--pb-color:var(--' + color + ')">' +
+        '<div class="pb-count" style="color:var(--' + color + ')">' + Math.round(count) + '</div>' +
+        '<div class="pb-label">' + escapeHtml(label) + '</div></div>';
+    }).join('');
+    return;
+  }
   var groups = data?.current_playerbase || data?.activity_index_groups || {};
   if (Object.keys(groups).length === 0) {
     el.innerHTML = '<div class="empty-text">no playerbase data</div>';
@@ -670,12 +689,13 @@ function renderPlayers(data) {
     return;
   }
   tbody.innerHTML = players.slice(0, 100).map(function (p) {
-    var name = p.name || p.player_name || p.playerName || '\u2014';
-    var pt = p.playtime ?? p.activePlaytime ?? p.active_playtime;
+    var name = p.playerName || p.name || p.player_name || '\u2014';
+    var pt = p.playtimeActive ?? p.playtime ?? p.activePlaytime;
     var playtime = typeof pt === 'number' ? formatPlaytime(pt) : (pt || '\u2014');
-    var sessions = p.sessions ?? p.sessionCount ?? p.session_count ?? '\u2014';
-    var lastSeen = formatDate(p.last_seen ?? p.lastSeen);
-    var activity = p.activity_group ?? p.activityGroup ?? p.activity_index_group ?? '\u2014';
+    var sessions = p.sessionCount ?? p.sessions ?? p.session_count ?? '\u2014';
+    var lastSeen = formatDate(p.lastSeen ?? p.last_seen);
+    var ai = p.activityIndex ?? p.activity_index;
+    var activity = typeof ai === 'number' ? ai.toFixed(2) : (p.activity_group ?? p.activityGroup ?? '\u2014');
     return '<tr>' +
       '<td class="player-name">' + escapeHtml(name) + '</td>' +
       '<td>' + escapeHtml(String(playtime)) + '</td>' +
@@ -690,7 +710,7 @@ async function refresh() {
   var results = await Promise.allSettled([
     fetchPlan('/v1/serverOverview', { server: serverName }),
     fetchPlan('/v1/performanceOverview', { server: serverName }),
-    fetchPlan('/v1/playerbaseOverview', { server: serverName }),
+    fetchPlan('/v1/graph', { type: 'activity', server: serverName }),
     fetchPlan('/v1/graph', { type: 'playersOnline', server: serverName }),
     fetchPlan('/v1/graph', { type: 'optimizedPerformance', server: serverName }),
     fetchPlan('/v1/playersTable', { server: serverName }),
