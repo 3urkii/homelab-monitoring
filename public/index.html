@@ -298,6 +298,35 @@ a.guest-row:active { transform: scale(0.99); }
   font-size: 0.68rem;
 }
 
+/* ─── Offline guests section ─── */
+.offline-guests summary {
+  cursor: pointer;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.68rem;
+  color: var(--comment);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding: 0.4rem 0 0;
+  user-select: none;
+}
+
+/* ─── Mobile responsive ─── */
+@media (max-width: 520px) {
+  header { padding: 1rem 1.25rem; gap: 0.75rem; flex-wrap: wrap; }
+  h1 { font-size: 1.5rem; }
+  .last-poll { margin-left: 0; font-size: 0.7rem; }
+  main { padding: 1rem; gap: 1.5rem; }
+  .machines-grid { grid-template-columns: 1fr; }
+  .card { padding: 1rem 1rem 1rem 1.25rem; }
+  .alerts-section { margin: 1rem; padding: 0.75rem 1rem; }
+  .chart-modal { padding: 0.75rem; }
+  .chart-modal-content { padding: 1rem; }
+  .guest-row-head .guest-type,
+  .guest-row-head .guest-vmid { display: none; }
+  .stat-row .label { width: 2.8rem; }
+  .stat-row .value { min-width: 4.5rem; font-size: 0.7rem; }
+}
+
 .error-banner {
   background: var(--surface); border: 1px solid var(--red); border-radius: 4px;
   padding: 0.5rem 1rem; color: var(--red);
@@ -617,6 +646,7 @@ function renderMachineCard(machine, state) {
     <details class="guests" ${machine.type === 'proxmox' ? 'open' : 'hidden'}>
       <summary>guests</summary>
       <div class="guest-list"></div>
+      <details class="offline-guests"><summary>offline [0]</summary><div class="offline-list"></div></details>
     </details>
   `;
   const stats = card.querySelector('.stats');
@@ -663,21 +693,30 @@ function updateMachineCard(card, machine, state) {
 
 function updateGuestList(card, state, machine) {
   const list = card.querySelector('.guest-list');
+  const offlineList = card.querySelector('.offline-list');
+  const offlineDetails = card.querySelector('details.offline-guests');
   const details = card.querySelector('details.guests');
   if (state.guests && state.guests.length > 0) {
+    const running = state.guests.filter((g) => g.status === 'running').sort((a, b) => a.name.localeCompare(b.name));
+    const offline = state.guests.filter((g) => g.status !== 'running').sort((a, b) => a.name.localeCompare(b.name));
     details.hidden = false;
     details.querySelector('summary').textContent = `guests [${state.guests.length}]`;
     list.innerHTML = '';
-    const sorted = state.guests
-      .slice()
-      .sort((a, b) => (b.status === 'running') - (a.status === 'running') || a.name.localeCompare(b.name));
-    for (const g of sorted) {
-      list.appendChild(buildGuestRow(g));
+    for (const g of running) list.appendChild(buildGuestRow(g));
+    offlineList.innerHTML = '';
+    if (offline.length > 0) {
+      offlineDetails.hidden = false;
+      offlineDetails.querySelector('summary').textContent = `offline [${offline.length}]`;
+      for (const g of offline) offlineList.appendChild(buildGuestRow(g));
+    } else {
+      offlineDetails.hidden = true;
     }
   } else if (machine.type === 'proxmox') {
     details.hidden = false;
     details.querySelector('summary').textContent = 'guests [0]';
     list.innerHTML = '';
+    offlineDetails.hidden = true;
+    offlineList.innerHTML = '';
   } else {
     details.hidden = true;
   }

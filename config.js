@@ -62,6 +62,9 @@ module.exports = {
     },
     overrides: [
       // { machine: "proxmox-internal", guest: "plex-lxc", cpuPct: 95 },
+      // Dedicated-RAM guests: silence memory alerts (they're always near 100%)
+      // { machine: "REPLACE_ME", guest: "REPLACE_ME_SURF",      memPct: 100 },
+      // { machine: "REPLACE_ME", guest: "REPLACE_ME_MINECRAFT", memPct: 100 },
     ],
   },
 };
