@@ -628,118 +628,100 @@ function mergePlayerData(perfPoints, perfKeys, onlineData) {
   return result;
 }
 
-function renderOnlineChart(onlineData, perfData) {
-  var container = document.getElementById('playersChart');
+function renderUnifiedChart() {
+  var container = document.getElementById('unifiedChart');
+  var resetBtn = document.getElementById('chartResetBtn');
+  var perfData = rawPerfData;
+  var onlineData = rawOnlineData;
+
   var perfKeys = perfData?.keys || [];
-  var usePerfSrc = perfData?.values?.length > 0 && perfKeys.indexOf('playersOnline') >= 0;
-  var raw = usePerfSrc ? perfData.values : (Array.isArray(onlineData) ? onlineData : (onlineData?.values || []));
-  var points = filterByRange(raw);
-  if (points.length === 0 || typeof uPlot === 'undefined') {
-    container.innerHTML = '<div class="chart-empty">' + (typeof uPlot === 'undefined' ? 'chart library unavailable' : 'no data available') + '</div>';
-    return;
-  }
-  container.innerHTML = '';
-  var ts = points.map(function (p) { return Math.floor(p[0] / 1000); });
-  var seriesData = [ts];
-  var series = [{}];
-  var scalesCfg = { x: { time: true }, players: { auto: true, range: function (u, lo, hi) { return [0, Math.max(hi, 1)]; } } };
-  var axesCfg = [
-    { stroke: '#6272a4', grid: { stroke: '#44475a', width: 1 }, ticks: { stroke: '#44475a' } },
-    { scale: 'players', stroke: '#6272a4', grid: { stroke: '#44475a', width: 1 }, ticks: { stroke: '#44475a' } },
-  ];
-
-  if (usePerfSrc) {
-    var pIdx = perfKeys.indexOf('playersOnline');
-    var tIdx = perfKeys.indexOf('tps');
-    seriesData.push(points.map(function (p) { return p[pIdx] ?? null; }));
-    series.push({ label: 'players', stroke: '#50fa7b', fill: 'rgba(80,250,123,0.08)', width: 1.5, scale: 'players' });
-    if (tIdx >= 0) {
-      seriesData.push(points.map(function (p) { return p[tIdx] ?? null; }));
-      series.push({ label: 'TPS', stroke: '#f1fa8c', width: 1.5, scale: 'tps' });
-      scalesCfg.tps = { range: [0, 22] };
-      axesCfg.push({ side: 1, scale: 'tps', stroke: '#f1fa8c', grid: { show: false },
-        values: function (u, vals) { return vals.map(function (v) { return v.toFixed(0); }); } });
-    }
-  } else {
-    seriesData.push(points.map(function (p) { return p[1]; }));
-    series.push({ label: 'players', stroke: '#50fa7b', fill: 'rgba(80,250,123,0.08)', width: 1.5, scale: 'players' });
-  }
-
-  if (onlineChart) onlineChart.destroy();
-  onlineChart = new uPlot({
-    width: container.clientWidth,
-    height: container.clientHeight - 30,
-    padding: [8, 16, 8, 8],
-    cursor: { drag: { x: true, y: false } },
-    scales: scalesCfg,
-    axes: axesCfg,
-    series: series,
-  }, seriesData, container);
-}
-
-function renderTpsChart(data) {
-  var container = document.getElementById('perfChart');
-  var allPoints = data?.values || [];
+  var allPoints = perfData?.values || [];
   var points = filterByRange(allPoints);
+
   if (points.length === 0 || typeof uPlot === 'undefined') {
     container.innerHTML = '<div class="chart-empty">' + (typeof uPlot === 'undefined' ? 'chart library unavailable' : 'no data available') + '</div>';
     return;
   }
   container.innerHTML = '';
-  var keys = data.keys || [];
-  var find = function (k) { return keys.indexOf(k); };
-  var cpuIdx    = Math.max(find('cpu_usage'), find('cpu'), find('cpuUsage'));
-  var ramIdx    = find('ram');
-  var chunksIdx = find('chunks');
-  var entityIdx = find('entities');
+
+  var mergedPlayers = mergePlayerData(points, perfKeys, onlineData);
+  var presetKeys = PRESETS[activePreset] || PRESETS.all;
 
   var ts = points.map(function (p) { return Math.floor(p[0] / 1000); });
   var seriesData = [ts];
   var series = [{}];
-  var scalesCfg = { x: { time: true }, aux: { auto: true } };
+  var scalesCfg = { x: { time: true } };
   var axesCfg = [
     { stroke: '#6272a4', grid: { stroke: '#44475a', width: 1 }, ticks: { stroke: '#44475a' } },
   ];
-  var hasLeft = false;
+  var addedScales = {};
 
-  if (cpuIdx > 0) {
-    seriesData.push(points.map(function (p) { return p[cpuIdx] ?? null; }));
-    series.push({ label: 'CPU %', stroke: '#bd93f9', width: 1.5, scale: 'pct' });
-    scalesCfg.pct = { range: [0, 100] };
-    axesCfg.push({ scale: 'pct', stroke: '#bd93f9', grid: { stroke: '#44475a', width: 1 }, ticks: { stroke: '#44475a' },
-      values: function (u, vals) { return vals.map(function (v) { return v.toFixed(0) + '%'; }); } });
-    hasLeft = true;
-  }
-  if (ramIdx > 0) {
-    seriesData.push(points.map(function (p) { return p[ramIdx] ?? null; }));
-    series.push({ label: 'RAM (MB)', stroke: '#ff79c6', width: 1.5, scale: 'aux' });
-    if (!hasLeft) {
-      axesCfg.push({ scale: 'aux', stroke: '#6272a4', grid: { stroke: '#44475a', width: 1 }, ticks: { stroke: '#44475a' } });
-      hasLeft = true;
+  for (var i = 0; i < METRIC_DEFS.length; i++) {
+    var m = METRIC_DEFS[i];
+    if (presetKeys.indexOf(m.key) < 0) continue;
+
+    var dataCol = null;
+    if (m.key === 'playersOnline' && mergedPlayers) {
+      dataCol = mergedPlayers;
+    } else {
+      var kIdx = findKeyIndex(perfKeys, m);
+      if (kIdx < 0) continue;
+      dataCol = points.map(function (p) { return p[kIdx] ?? null; });
+    }
+
+    seriesData.push(dataCol);
+    var seriesCfg = { label: m.label, stroke: m.color, width: m.width, scale: m.scale };
+    if (m.fill) seriesCfg.fill = m.fill;
+    series.push(seriesCfg);
+
+    if (!addedScales[m.scale]) {
+      addedScales[m.scale] = true;
+      if (m.scale === 'pct') {
+        scalesCfg.pct = { range: [0, 100] };
+        axesCfg.push({ scale: 'pct', stroke: '#bd93f9', grid: { stroke: '#44475a', width: 1 }, ticks: { stroke: '#44475a' },
+          values: function (u, vals) { return vals.map(function (v) { return v.toFixed(0) + '%'; }); } });
+      } else if (m.scale === 'tps') {
+        scalesCfg.tps = { range: [0, 22] };
+        axesCfg.push({ side: 1, scale: 'tps', stroke: '#f1fa8c', grid: { show: false },
+          values: function (u, vals) { return vals.map(function (v) { return v.toFixed(0); }); } });
+      } else if (m.scale === 'count') {
+        scalesCfg.count = { auto: true, range: function (u, lo, hi) { return [0, Math.max(hi, 1)]; } };
+        axesCfg.push({ scale: 'count', stroke: '#6272a4', grid: { stroke: '#44475a', width: 1 }, ticks: { stroke: '#44475a' } });
+      } else if (m.scale === 'aux') {
+        scalesCfg.aux = { auto: true };
+        axesCfg.push({ side: 1, scale: 'aux', stroke: '#6272a4', grid: { show: false } });
+      }
     }
   }
-  if (chunksIdx > 0) {
-    seriesData.push(points.map(function (p) { return p[chunksIdx] ?? null; }));
-    series.push({ label: 'chunks', stroke: '#8be9fd', width: 1, scale: 'aux' });
-  }
-  if (entityIdx > 0) {
-    seriesData.push(points.map(function (p) { return p[entityIdx] ?? null; }));
-    series.push({ label: 'entities', stroke: '#ffb86c', width: 1, scale: 'aux' });
-  }
-  if (!hasLeft) {
-    axesCfg.push({ scale: 'aux', stroke: '#6272a4', grid: { stroke: '#44475a', width: 1 }, ticks: { stroke: '#44475a' } });
-  }
-  axesCfg.push({ side: 1, scale: cpuIdx > 0 ? 'aux' : 'pct', stroke: '#6272a4', grid: { show: false } });
 
-  if (tpsChart) tpsChart.destroy();
-  tpsChart = new uPlot({
+  if (series.length <= 1) {
+    container.innerHTML = '<div class="chart-empty">no data for this preset</div>';
+    return;
+  }
+
+  if (unifiedChart) unifiedChart.destroy();
+  resetBtn.classList.remove('visible');
+
+  unifiedChart = new uPlot({
     width: container.clientWidth,
-    height: container.clientHeight - 60,
+    height: container.clientHeight - 10,
     padding: [8, 16, 8, 8],
-    cursor: { drag: { x: true, y: false } },
+    cursor: { drag: { x: true, y: false, setScale: true } },
     scales: scalesCfg,
     axes: axesCfg,
     series: series,
+    hooks: {
+      setScale: [function (u, key) {
+        if (key !== 'x') return;
+        var xData = u.data[0];
+        var fullMin = xData[0];
+        var fullMax = xData[xData.length - 1];
+        var curMin = u.scales.x.min;
+        var curMax = u.scales.x.max;
+        var isZoomed = Math.abs(curMin - fullMin) > 1 || Math.abs(curMax - fullMax) > 1;
+        resetBtn.classList.toggle('visible', isZoomed);
+      }],
+    },
   }, seriesData, container);
 }
 
