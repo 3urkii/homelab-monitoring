@@ -817,8 +817,7 @@ async function refresh() {
   if (overview || perf)  renderOverview(overview, perf);
   if (onlineG) rawOnlineData = onlineG;
   if (perfG)   rawPerfData = perfG;
-  if (onlineG || perfG)  renderOnlineChart(rawOnlineData, rawPerfData);
-  if (perfG)             renderTpsChart(perfG);
+  if (onlineG || perfG)  renderUnifiedChart();
   if (pbase)             renderPlayerbase(pbase);
   if (players)           renderPlayers(players);
 
@@ -852,13 +851,9 @@ var resizeTimer;
 window.addEventListener('resize', function () {
   clearTimeout(resizeTimer);
   resizeTimer = setTimeout(function () {
-    if (onlineChart) {
-      var c1 = document.getElementById('playersChart');
-      onlineChart.setSize({ width: c1.clientWidth, height: c1.clientHeight - 30 });
-    }
-    if (tpsChart) {
-      var c2 = document.getElementById('perfChart');
-      tpsChart.setSize({ width: c2.clientWidth, height: c2.clientHeight - 60 });
+    if (unifiedChart) {
+      var c = document.getElementById('unifiedChart');
+      unifiedChart.setSize({ width: c.clientWidth, height: c.clientHeight - 10 });
     }
   }, 200);
 });
@@ -870,8 +865,29 @@ document.getElementById('rangePicker').addEventListener('click', function (e) {
   document.querySelectorAll('.range-btn').forEach(function (b) {
     b.dataset.active = b.dataset.range === chartRange ? 'true' : 'false';
   });
-  if (rawOnlineData || rawPerfData) renderOnlineChart(rawOnlineData, rawPerfData);
-  if (rawPerfData) renderTpsChart(rawPerfData);
+  renderUnifiedChart();
+});
+
+document.getElementById('presetPicker').addEventListener('click', function (e) {
+  var btn = e.target.closest('.preset-btn');
+  if (!btn || btn.dataset.preset === activePreset) return;
+  activePreset = btn.dataset.preset;
+  document.querySelectorAll('.preset-btn').forEach(function (b) {
+    b.dataset.active = b.dataset.preset === activePreset ? 'true' : 'false';
+  });
+  renderUnifiedChart();
+});
+
+document.getElementById('chartResetBtn').addEventListener('click', function () {
+  if (!unifiedChart) return;
+  var xData = unifiedChart.data[0];
+  unifiedChart.setScale('x', { min: xData[0], max: xData[xData.length - 1] });
+});
+
+document.getElementById('unifiedChart').addEventListener('dblclick', function () {
+  if (!unifiedChart) return;
+  var xData = unifiedChart.data[0];
+  unifiedChart.setScale('x', { min: xData[0], max: xData[xData.length - 1] });
 });
 
 document.getElementById('refreshBtn').addEventListener('click', function () {
