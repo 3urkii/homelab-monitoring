@@ -1011,12 +1011,6 @@ function renderChart(data) {
   };
 
   chartInstance = new uPlot(opts, [timestamps, cpu, memPct, netRxMB, netTxMB], canvas);
-
-  canvas.addEventListener('dblclick', function () {
-    if (!chartInstance) return;
-    var xData = chartInstance.data[0];
-    chartInstance.setScale('x', { min: xData[0], max: xData[xData.length - 1] });
-  });
 }
 
 document.getElementById('chartModalClose').addEventListener('click', closeChart);
@@ -1029,6 +1023,11 @@ document.addEventListener('keydown', (e) => {
   }
 });
 document.getElementById('chartResetBtn').addEventListener('click', function () {
+  if (!chartInstance) return;
+  var xData = chartInstance.data[0];
+  chartInstance.setScale('x', { min: xData[0], max: xData[xData.length - 1] });
+});
+document.getElementById('chartCanvas').addEventListener('dblclick', function () {
   if (!chartInstance) return;
   var xData = chartInstance.data[0];
   chartInstance.setScale('x', { min: xData[0], max: xData[xData.length - 1] });
