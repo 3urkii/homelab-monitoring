@@ -4,3 +4,4 @@ node_modules/
 config.local.js
 data/
 graphify-out/
+.superpowers/
