@@ -89,13 +89,10 @@ Card grid:
 - Color swatch (hidden if `supports_color === false`)
 - Unreachable rows: opacity 0.45, controls disabled, `UNREACHABLE` badge in orange
 
-### Color picker (popover)
-Tap a swatch → small popover anchored to the swatch:
-- 8 quick presets: red, orange, yellow, green, cyan, purple, pink, white (Dracula palette)
-- **Warmth slider** — gradient from warm-orange to cool-blue (drives `color_temp` if bulb supports it; else maps to RGB approximation)
-- **Custom**: native `<input type="color">` for fine control
+### Color picker
+Tap a swatch → opens a native `<input type="color">` for fine control. No preset palette and no warmth slider — the user's Hue scenes already serve as curated "mood" presets, so we don't duplicate them with arbitrary swatches.
 
-For tunable-white-only bulbs, show only the warmth slider. For RGB bulbs, all three sections.
+Hidden entirely for bulbs where `supports_color === false` (the swatch isn't rendered in the row at all).
 
 ### Scene chip
 - Border, cyan text, monospace, uppercase
@@ -112,7 +109,7 @@ For tunable-white-only bulbs, show only the warmth slider. For RGB bulbs, all th
 | Tap room name / `+N` | Open room sheet. |
 | Tap ALL OFF in header | Loop `POST /api/lights/:id { on: false }` for every reachable on-light. Confirm? **No** — fast undo by tapping any orb back on. |
 | Drag slider in sheet | Optimistic %, debounced 200ms post (preserved from current impl). |
-| Tap swatch in sheet | Open color popover. Choose preset / drag warmth / pick custom → close popover, post `rgb_color`. |
+| Tap swatch in sheet | Open native color picker. On change, post `rgb_color`. |
 | Tap ✕, Escape, backdrop | Close sheet. |
 
 ## Visual language
