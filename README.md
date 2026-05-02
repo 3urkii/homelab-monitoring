@@ -13,7 +13,10 @@ Local-network dashboard for monitoring Proxmox hosts with auto-discovered LXCs/V
 git clone <this-repo> /opt/homelab-monitoring
 cd /opt/homelab-monitoring
 npm install
+cp config.example.js config.js
 ```
+
+`config.js` is gitignored — your secrets stay local. `config.example.js` is the tracked template.
 
 ## Create a read-only Proxmox API token
 

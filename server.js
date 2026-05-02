@@ -132,6 +132,12 @@ function validateConfig(cfg) {
 function main() {
   let config;
   try {
+    if (!fs.existsSync(path.join(__dirname, 'config.js'))) {
+      throw new Error(
+        'config.js not found. Copy config.example.js to config.js and fill in your values:\n' +
+        '    cp config.example.js config.js'
+      );
+    }
     config = require('./config.js');
     validateConfig(config);
   } catch (err) {
