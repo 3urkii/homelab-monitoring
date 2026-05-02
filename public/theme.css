@@ -379,6 +379,7 @@ h1 .tld {
   animation: brandBlink 1.2s steps(1) infinite;
   color: var(--green);
 }
+@keyframes brandBlink { 50% { opacity: 0; } }
 
 /* ---------- Refresh button (used by monitoring/plan) ---------- */
 .refresh-btn {
@@ -440,6 +441,8 @@ h1 .tld {
 
 @media (prefers-reduced-motion: reduce) {
   .status-chip .dot { animation: none; }
+  .brand-cursor { animation: none; }
+  .clock .colon { animation: none; }
 }
 
 /* ============================================================
@@ -487,9 +490,4 @@ h1 .tld {
   margin-left: 3px;
   animation: brandBlink 1.05s steps(1) infinite;
   box-shadow: 0 0 6px rgba(var(--green-rgb), 0.6);
-}
-@keyframes brandBlink { 50% { opacity: 0; } }
-@media (prefers-reduced-motion: reduce) {
-  .brand-cursor { animation: none; }
-  .clock .colon { animation: none; }
 }
