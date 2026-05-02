@@ -147,6 +147,7 @@ main {
   transition: opacity 200ms var(--ease-out);
 }
 .tile[data-accent="lights"]::before { background: var(--pink); }
+.tile[data-accent="network"]::before { background: var(--cyan); }
 
 @media (hover: hover) and (pointer: fine) {
   .tile:hover {
@@ -157,11 +158,17 @@ main {
     border-color: var(--pink);
     background: rgba(255,121,198,0.04);
   }
+  .tile[data-accent="network"]:hover {
+    border-color: var(--cyan);
+    background: rgba(139,233,253,0.04);
+  }
   .tile:hover::before { opacity: 1; }
   .tile:hover .tile-arrow { transform: translateX(3px); color: var(--purple); }
   .tile[data-accent="lights"]:hover .tile-arrow { color: var(--pink); }
+  .tile[data-accent="network"]:hover .tile-arrow { color: var(--cyan); }
   .tile:hover .tile-title { color: var(--purple); }
   .tile[data-accent="lights"]:hover .tile-title { color: var(--pink); }
+  .tile[data-accent="network"]:hover .tile-title { color: var(--cyan); }
 }
 
 .tile-head {
@@ -211,6 +218,7 @@ main {
 .tile-stat-line .value.dim { color: var(--comment); font-style: italic; }
 .tile-stat-line .value strong { color: var(--purple); font-weight: 700; }
 .tile[data-accent="lights"] .tile-stat-line .value strong { color: var(--pink); }
+.tile[data-accent="network"] .tile-stat-line .value strong { color: var(--cyan); }
 .tile-stat-line .alert { color: var(--red); }
 
 .tile-foot {
@@ -278,6 +286,19 @@ footer .prompt { color: var(--green); margin-right: 0.5ch; }
           <div class="tile-stat-line"><span class="bullet">▸</span><span class="value" id="monGuests"><span class="dim">— guests running</span></span></div>
         </div>
         <div class="tile-foot"><span class="prompt">$</span><span id="monFoot">probing /api/stats…</span></div>
+      </a>
+
+      <a class="tile" href="https://192.168.1.1" data-accent="network" data-status="idle" id="networkTile" rel="noopener">
+        <div class="tile-head">
+          <span class="tile-status-dot"></span>
+          <span class="tile-title">network</span>
+          <span class="tile-arrow">→</span>
+        </div>
+        <div class="tile-body">
+          <div class="tile-stat-line"><span class="bullet">▸</span><span class="value">unifi <strong>controller</strong></span></div>
+          <div class="tile-stat-line"><span class="bullet">▸</span><span class="value">gateway · <strong>192.168.1.1</strong></span></div>
+        </div>
+        <div class="tile-foot"><span class="prompt">$</span>launch unifi app</div>
       </a>
 
       <a class="tile" href="/lights" data-accent="lights" data-status="idle" id="lightsTile" hidden>
@@ -448,6 +469,37 @@ function renderLights(snap) {
   tile.dataset.status = onCount > 0 ? 'active' : 'idle';
   footEl.textContent = onCount > 0 ? `${onCount} active` : 'idle';
 }
+
+const NETWORK_FALLBACK_URL = 'https://192.168.1.1';
+const UNIFI_IOS_SCHEME = 'unifi-network://';
+const UNIFI_ANDROID_SCHEME = 'unifi-network';
+const UNIFI_ANDROID_PACKAGE = 'com.ubnt.easyunifi';
+
+document.getElementById('networkTile').addEventListener('click', (e) => {
+  const ua = navigator.userAgent;
+  const isIOS = /iPad|iPhone|iPod/.test(ua) || (/Macintosh/.test(ua) && 'ontouchend' in document);
+  const isAndroid = /Android/.test(ua);
+  if (!isIOS && !isAndroid) return; // desktop: let the browser follow href
+
+  e.preventDefault();
+
+  if (isAndroid) {
+    const intent = `intent://#Intent;scheme=${UNIFI_ANDROID_SCHEME};package=${UNIFI_ANDROID_PACKAGE};S.browser_fallback_url=${encodeURIComponent(NETWORK_FALLBACK_URL)};end`;
+    window.location.href = intent;
+    return;
+  }
+
+  // iOS: try the deep link, fall back if the app didn't take over
+  const fallbackTimer = setTimeout(() => { window.location.href = NETWORK_FALLBACK_URL; }, 1500);
+  const cancelOnHide = () => {
+    if (document.hidden) {
+      clearTimeout(fallbackTimer);
+      document.removeEventListener('visibilitychange', cancelOnHide);
+    }
+  };
+  document.addEventListener('visibilitychange', cancelOnHide);
+  window.location.href = UNIFI_IOS_SCHEME;
+});
 
 refreshMonitoring();
 probeLights();
