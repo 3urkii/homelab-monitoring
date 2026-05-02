@@ -5,3 +5,4 @@ config.local.js
 data/
 graphify-out/
 .superpowers/
+.worktrees/

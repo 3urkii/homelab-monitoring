@@ -50,8 +50,12 @@
     btn.setAttribute('aria-haspopup', 'listbox');
     btn.setAttribute('aria-expanded', 'false');
     btn.setAttribute('aria-label', 'change colorscheme');
-    btn.innerHTML = `<span class="tp-colon">:</span><span class="tp-name"></span>`;
-    const nameEl = btn.querySelector('.tp-name');
+    btn.innerHTML = `
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <path d="M3 21l4-1 11-11-3-3L4 17z"/>
+    <path d="M14 6l4 4"/>
+  </svg>
+`;
 
     const menu = document.createElement('div');
     menu.className = 'theme-picker-menu';
@@ -76,8 +80,6 @@
 
     function syncUI() {
       const id = currentThemeId();
-      const theme = THEMES.find((t) => t.id === id) || THEMES[0];
-      nameEl.textContent = theme.label;
       menu.querySelectorAll('.theme-picker-opt').forEach((opt) => {
         if (opt.dataset.themeId === id) opt.setAttribute('aria-current', 'true');
         else opt.removeAttribute('aria-current');
@@ -123,14 +125,15 @@
   }
 
   function mountClocks() {
-    const nodes = document.querySelectorAll('[data-clock]');
-    if (!nodes.length) return;
+    const hNodes = document.querySelectorAll('[data-clock-h]');
+    const mNodes = document.querySelectorAll('[data-clock-m]');
+    if (!hNodes.length && !mNodes.length) return;
     function tick() {
       const now = new Date();
       const hh = String(now.getHours()).padStart(2, '0');
       const mm = String(now.getMinutes()).padStart(2, '0');
-      const text = `${hh}:${mm}`;
-      nodes.forEach((n) => { n.textContent = text; });
+      hNodes.forEach((n) => { n.textContent = hh; });
+      mNodes.forEach((n) => { n.textContent = mm; });
     }
     tick();
     setInterval(tick, 30_000);
