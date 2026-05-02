@@ -13,6 +13,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Rajdhani:wght@500;700&display=swap" rel="stylesheet">
+<script>(function(){try{var t=localStorage.getItem('homelab.theme');if(t&&t!=='dracula')document.documentElement.setAttribute('data-theme',t);}catch(e){}}());</script>
 <style>
 :root {
   --bg: #282a36;
@@ -28,6 +29,13 @@
   --pink: #ff79c6;
   --purple: #bd93f9;
   --cyan: #8be9fd;
+  --green-rgb: 80,250,123;
+  --yellow-rgb: 241,250,140;
+  --orange-rgb: 255,184,108;
+  --red-rgb: 255,85,85;
+  --pink-rgb: 255,121,198;
+  --purple-rgb: 189,147,249;
+  --cyan-rgb: 139,233,253;
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
 }
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -163,21 +171,21 @@ main {
 .msg.user { align-self: flex-end; align-items: flex-end; }
 .msg.user .msg-meta { color: var(--purple); }
 .msg.user .msg-bubble {
-  background: rgba(189,147,249,0.10);
-  border-color: rgba(189,147,249,0.35);
+  background: rgba(var(--purple-rgb), 0.10);
+  border-color: rgba(var(--purple-rgb), 0.35);
 }
 .msg.assistant .msg-meta { color: var(--cyan); }
 .msg.assistant .msg-bubble {
-  border-color: rgba(139,233,253,0.25);
+  border-color: rgba(var(--cyan-rgb), 0.25);
 }
 .msg.assistant.action .msg-bubble {
-  border-color: rgba(80,250,123,0.35);
-  background: rgba(80,250,123,0.06);
+  border-color: rgba(var(--green-rgb), 0.35);
+  background: rgba(var(--green-rgb), 0.06);
 }
 .msg.assistant.error .msg-meta { color: var(--red); }
 .msg.assistant.error .msg-bubble {
-  border-color: rgba(255,85,85,0.35);
-  background: rgba(255,85,85,0.06);
+  border-color: rgba(var(--red-rgb), 0.35);
+  background: rgba(var(--red-rgb), 0.06);
   color: var(--red);
 }
 .msg-tag {
@@ -188,7 +196,7 @@ main {
   margin-left: 0.5ch;
   padding: 0 0.45ch;
   border-radius: 2px;
-  background: rgba(80,250,123,0.15);
+  background: rgba(var(--green-rgb), 0.15);
   color: var(--green);
 }
 
@@ -247,7 +255,7 @@ main {
 .composer button {
   background: transparent;
   color: var(--cyan);
-  border: 1px solid rgba(139,233,253,0.35);
+  border: 1px solid rgba(var(--cyan-rgb), 0.35);
   border-radius: 4px;
   padding: 0.45rem 0.85rem;
   font-family: "JetBrains Mono", monospace;
@@ -259,7 +267,7 @@ main {
   align-self: stretch;
 }
 .composer button:hover:not(:disabled) {
-  background: rgba(139,233,253,0.10);
+  background: rgba(var(--cyan-rgb), 0.10);
 }
 .composer button:disabled {
   color: var(--comment);
@@ -296,6 +304,8 @@ main {
   .msg, .typing span, .status-chip[data-status="working"] .dot { animation: none; }
 }
 </style>
+<link rel="stylesheet" href="/theme.css">
+<script src="/theme.js" defer></script>
 </head>
 <body>
 <header>

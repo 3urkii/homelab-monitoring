@@ -1,0 +1,133 @@
+/* burkii.home theme system
+ * Default theme is Dracula (declared in each page's inline :root for FOUC-free fallback).
+ * Switch themes by setting data-theme="<id>" on <html>; theme.js handles persistence + UI.
+ *
+ * To add a new theme: copy a [data-theme="..."] block, swap palette + rgb channels,
+ * register the theme in theme.js THEMES array. Done.
+ */
+
+/* ---------- Catppuccin Latte (light) ---------- */
+[data-theme="catppuccin-latte"] {
+  --bg: #e6e9ef;            /* Mantle */
+  --bg-alt: #dce0e8;        /* Crust  — used as recessed header gradient */
+  --surface: #eff1f5;       /* Base   — lifted card surface */
+  --current-line: #ccd0da;  /* Surface0 — borders */
+  --fg: #4c4f69;            /* Text */
+  --comment: #6c6f85;       /* Subtext0 */
+  --green:  #40a02b;
+  --yellow: #df8e1d;
+  --orange: #fe640b;        /* Peach */
+  --red:    #d20f39;
+  --pink:   #ea76cb;
+  --purple: #8839ef;        /* Mauve */
+  --cyan:   #04a5e5;        /* Sky */
+  --green-rgb:  64,160,43;
+  --yellow-rgb: 223,142,29;
+  --orange-rgb: 254,100,11;
+  --red-rgb:    210,15,57;
+  --pink-rgb:   234,118,203;
+  --purple-rgb: 136,57,239;
+  --cyan-rgb:   4,165,229;
+}
+[data-theme="catppuccin-latte"] body { color-scheme: light; }
+
+/* Soften neutral-grey rgbas that were tuned for a dark bg */
+[data-theme="catppuccin-latte"] .weather-panel,
+[data-theme="catppuccin-latte"] .theme-picker-menu {
+  box-shadow: 0 12px 32px rgba(76, 79, 105, 0.18);
+}
+[data-theme="catppuccin-latte"] .room-sheet::backdrop {
+  background: rgba(76, 79, 105, 0.35);
+}
+/* Chart tooltip on monitoring page — dark pill becomes a light pill */
+[data-theme="catppuccin-latte"] .chart-tooltip,
+[data-theme="catppuccin-latte"] .u-tooltip {
+  background: rgba(255, 255, 255, 0.94);
+  color: var(--fg);
+  border-color: var(--current-line);
+}
+
+/* ---------- Theme picker UI ---------- */
+.theme-picker {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  font-family: "JetBrains Mono", monospace;
+}
+.theme-picker-btn {
+  font-family: inherit;
+  font-size: 0.72rem;
+  letter-spacing: 0.02em;
+  color: var(--comment);
+  background: transparent;
+  border: 0;
+  padding: 0;
+  display: inline-flex;
+  align-items: baseline;
+  cursor: pointer;
+  transition: color 160ms var(--ease-out, ease);
+}
+.theme-picker-btn .tp-colon { color: var(--comment); }
+.theme-picker-btn .tp-name { color: var(--cyan); }
+@media (hover: hover) and (pointer: fine) {
+  .theme-picker-btn:hover .tp-name { color: var(--pink); }
+  .theme-picker-btn:hover .tp-colon { color: var(--pink); }
+}
+.theme-picker-btn[aria-expanded="true"] .tp-name { color: var(--pink); }
+.theme-picker-btn[aria-expanded="true"] .tp-colon { color: var(--pink); }
+
+.theme-picker-menu {
+  position: absolute;
+  top: calc(100% + 0.5rem);
+  right: 0;
+  min-width: 220px;
+  background: var(--bg-alt);
+  border: 1px solid var(--current-line);
+  border-radius: 6px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
+  padding: 0.35rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  z-index: 1000;
+  animation: themePickerDrop 180ms var(--ease-out, ease);
+}
+.theme-picker-menu[hidden] { display: none; }
+@keyframes themePickerDrop {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.theme-picker-opt {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.45rem 0.6rem;
+  background: transparent;
+  color: var(--fg);
+  border: 0;
+  border-radius: 4px;
+  font: inherit;
+  font-size: 0.78rem;
+  text-align: left;
+  cursor: pointer;
+  letter-spacing: 0.02em;
+  transition: background 120ms var(--ease-out, ease), color 120ms var(--ease-out, ease);
+}
+.theme-picker-opt::before {
+  content: "·";
+  color: var(--comment);
+  width: 1ch;
+  display: inline-block;
+  text-align: center;
+}
+.theme-picker-opt[aria-current="true"] { color: var(--green); }
+.theme-picker-opt[aria-current="true"]::before { content: "▸"; color: var(--green); }
+.theme-picker-opt:hover:not([aria-current="true"]) {
+  background: rgba(var(--cyan-rgb), 0.08);
+  color: var(--cyan);
+}
+
+@media (max-width: 520px) {
+  .theme-picker-btn .tp-cmd { display: none; }
+}
