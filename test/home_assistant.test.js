@@ -83,6 +83,17 @@ test('parseLights: lights/scenes without area land in unassigned', () => {
   assert.deepEqual(out.unassigned.scenes.map((s) => s.entity_id), ['scene.orphan_scene']);
 });
 
+test('parseLights: only includes scenes labeled "dashboard"', () => {
+  const out = parseLights(states, areas, devices, entities);
+  const allSceneIds = out.rooms.flatMap((r) => r.scenes.map((s) => s.entity_id))
+    .concat(out.unassigned.scenes.map((s) => s.entity_id));
+  assert.ok(allSceneIds.includes('scene.living_room_movie'));
+  assert.ok(allSceneIds.includes('scene.bedroom_sleep'));
+  assert.ok(allSceneIds.includes('scene.orphan_scene'));
+  assert.ok(!allSceneIds.includes('scene.living_room_party'));
+  assert.ok(!allSceneIds.includes('scene.orphan_unlabeled'));
+});
+
 test('parseLights: ignores non-light/scene entities', () => {
   const out = parseLights(states, areas, devices, entities);
   const allLightIds = out.rooms.flatMap((r) => r.lights.map((l) => l.entity_id))

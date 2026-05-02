@@ -45,9 +45,19 @@
     "attributes": { "friendly_name": "Sleep" }
   },
   {
+    "entity_id": "scene.living_room_party",
+    "state": "scening",
+    "attributes": { "friendly_name": "Party Mode" }
+  },
+  {
     "entity_id": "scene.orphan_scene",
     "state": "scening",
     "attributes": { "friendly_name": "Orphan Scene" }
+  },
+  {
+    "entity_id": "scene.orphan_unlabeled",
+    "state": "scening",
+    "attributes": { "friendly_name": "Orphan Unlabeled" }
   },
   {
     "entity_id": "switch.kitchen_kettle",
