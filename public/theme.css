@@ -123,26 +123,31 @@ h1 .tld {
   font-family: "JetBrains Mono", monospace;
 }
 .theme-picker-btn {
-  font-family: inherit;
-  font-size: 0.72rem;
-  letter-spacing: 0.02em;
-  color: var(--comment);
-  background: transparent;
-  border: 0;
+  width: 30px;
+  height: 30px;
   padding: 0;
   display: inline-flex;
-  align-items: baseline;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--current-line);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--purple);
   cursor: pointer;
-  transition: color 160ms var(--ease-out, ease);
+  font-family: inherit;
+  transition: border-color 140ms var(--ease-out), background 140ms var(--ease-out);
 }
-.theme-picker-btn .tp-colon { color: var(--comment); }
-.theme-picker-btn .tp-name { color: var(--cyan); }
+.theme-picker-btn svg { width: 16px; height: 16px; }
 @media (hover: hover) and (pointer: fine) {
-  .theme-picker-btn:hover .tp-name { color: var(--pink); }
-  .theme-picker-btn:hover .tp-colon { color: var(--pink); }
+  .theme-picker-btn:hover {
+    border-color: var(--purple);
+    background: rgba(var(--purple-rgb), 0.08);
+  }
 }
-.theme-picker-btn[aria-expanded="true"] .tp-name { color: var(--pink); }
-.theme-picker-btn[aria-expanded="true"] .tp-colon { color: var(--pink); }
+.theme-picker-btn[aria-expanded="true"] {
+  border-color: var(--purple);
+  background: rgba(var(--purple-rgb), 0.08);
+}
 
 .theme-picker-menu {
   position: absolute;
@@ -272,7 +277,7 @@ h1 .tld {
   gap: 0.5ch;
   font-family: "JetBrains Mono", monospace;
   font-weight: 700;
-  font-size: clamp(1.2rem, 0.95rem + 1.2vw, 1.85rem);
+  font-size: clamp(1.55rem, 1.2rem + 1.6vw, 2.2rem);
   letter-spacing: -0.02em;
   text-decoration: none;
   color: inherit;
@@ -365,8 +370,15 @@ h1 .tld {
   color: var(--comment);
   letter-spacing: 0.02em;
   white-space: nowrap;
+  padding: 0.22rem 0.55rem;
+  border: 1px solid var(--current-line);
+  border-radius: 999px;
 }
-.clock .prompt { color: var(--green); margin-right: 0.5ch; }
+.clock .prompt { color: var(--green); margin-right: 0.4ch; }
+.clock .colon {
+  animation: brandBlink 1.2s steps(1) infinite;
+  color: var(--green);
+}
 
 /* ---------- Refresh button (used by monitoring/plan) ---------- */
 .refresh-btn {
@@ -415,8 +427,7 @@ h1 .tld {
   .page-header { padding: 0.6rem 0.85rem; gap: 0.45rem 0.6rem; }
   .header-tools { gap: 0.45rem; font-size: 0.7rem; }
   .header-chrome { gap: 0.65rem; }
-  .clock { font-size: 0.68rem; }
-  .clock .prompt { display: none; }
+  .clock { display: none; }
   /* Status chip becomes dot-only on the smallest screens to save 6–10ch */
   .status-chip { letter-spacing: 0.05em; }
 }
@@ -429,4 +440,56 @@ h1 .tld {
 
 @media (prefers-reduced-motion: reduce) {
   .status-chip .dot { animation: none; }
+}
+
+/* ============================================================
+   Page chrome wrapper — sticks header (and sub-bar where present)
+   to the top of the viewport so they scroll together.
+   ============================================================ */
+.page-chrome {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  background: var(--bg);
+}
+
+/* ============================================================
+   Sub-page tool bar — sits beneath header on sub-pages, holds
+   page-specific controls (status, count, refresh, ALL OFF, etc).
+   ============================================================ */
+.page-subbar {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.45rem 0.85rem;
+  background: var(--bg-alt);
+  border-bottom: 1px solid var(--current-line);
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.72rem;
+  color: var(--comment);
+}
+.page-subbar .spacer { flex: 1; }
+@media (max-width: 640px) {
+  .page-subbar { padding: 0.4rem 0.75rem; gap: 0.5rem; font-size: 0.68rem; }
+  .page-subbar .status-chip span:not(.dot) { display: none; }
+}
+
+/* ============================================================
+   Brand cursor — terminal-style blinking cursor after the
+   landing brand only (not applied to .brand--compact).
+   ============================================================ */
+.brand-cursor {
+  display: inline-block;
+  width: 0.55ch;
+  height: 0.95em;
+  vertical-align: -2px;
+  background: var(--green);
+  margin-left: 3px;
+  animation: brandBlink 1.05s steps(1) infinite;
+  box-shadow: 0 0 6px rgba(var(--green-rgb), 0.6);
+}
+@keyframes brandBlink { 50% { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .brand-cursor { animation: none; }
+  .clock .colon { animation: none; }
 }
