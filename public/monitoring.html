@@ -686,7 +686,7 @@ function statRow(label, pct) {
   return `
     <div class="stat-row" data-metric="${label.toLowerCase()}">
       <span class="label">${label}</span>
-      <div class="bar"><div class="bar-fill" data-level="${level}" style="width:${pct ?? 0}%"></div></div>
+      <div class="bar"><div class="bar-fill" data-level="${level}"></div></div>
       <span class="value">${formatPct(pct)}</span>
     </div>
   `;
