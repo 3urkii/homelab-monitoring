@@ -63,9 +63,27 @@ function validateConfig(cfg) {
     if (!cfg.plan || typeof cfg.plan !== 'object') {
       errors.push('plan must be an object');
     } else {
-      if (!cfg.plan.url || typeof cfg.plan.url !== 'string') errors.push('plan.url must be a non-empty string');
-      if (!cfg.plan.machine) errors.push('plan.machine is required');
-      if (!cfg.plan.guest) errors.push('plan.guest is required');
+      if (!cfg.plan.url || typeof cfg.plan.url !== 'string' || cfg.plan.url.includes('REPLACE_ME')) {
+        errors.push('plan.url must be a non-empty URL');
+      }
+      if (!cfg.plan.machine || cfg.plan.machine === 'REPLACE_ME') errors.push('plan.machine is required');
+      if (!cfg.plan.guest || cfg.plan.guest === 'REPLACE_ME') errors.push('plan.guest is required');
+    }
+  }
+  if (cfg.network !== undefined) {
+    const n = cfg.network;
+    if (!n || typeof n !== 'object') {
+      errors.push('network must be an object');
+    } else {
+      if (!n.url || typeof n.url !== 'string' || n.url.includes('REPLACE_ME')) {
+        errors.push('network.url must be a non-empty URL');
+      }
+      if (n.label !== undefined && (typeof n.label !== 'string' || !n.label)) {
+        errors.push('network.label must be a non-empty string if set');
+      }
+      if (n.gateway !== undefined && (typeof n.gateway !== 'string' || !n.gateway)) {
+        errors.push('network.gateway must be a non-empty string if set');
+      }
     }
   }
   if (cfg.weather !== undefined) {
@@ -162,6 +180,18 @@ function main() {
   app.use(express.json({ limit: '64kb' }));
   app.get('/monitoring', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'monitoring.html')));
   app.get('/api/stats', (_req, res) => res.json(poller.getState()));
+
+  app.get('/api/landing-config', (_req, res) => {
+    res.json({
+      network: config.network
+        ? {
+            url: config.network.url,
+            label: config.network.label || 'unifi controller',
+            gateway: config.network.gateway || null,
+          }
+        : null,
+    });
+  });
 
   app.get('/api/history', (req, res) => {
     try {

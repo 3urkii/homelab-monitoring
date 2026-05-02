@@ -70,10 +70,19 @@ module.exports = {
   // Plan Player Analytics integration — adds a Minecraft analytics page.
   // Set machine/guest to the VM or LXC running the Minecraft server.
   plan: {
-    url: 'http://192.168.20.87:8804',
+    url: 'http://REPLACE_ME:8804',  // e.g. "http://10.0.20.87:8804"
     machine: 'REPLACE_ME',   // machines[].name of the Proxmox host
     guest: 'REPLACE_ME',     // guest name of the Minecraft VM/LXC
   },
+
+  // Network tile on the landing page — clickable card that deep-links to the
+  // UniFi mobile app on iOS/Android, falling back to the controller URL on desktop.
+  // Omit this block to hide the network tile entirely.
+  // network: {
+  //   url: "https://192.168.1.1",  // UniFi controller / gateway URL
+  //   label: "unifi controller",
+  //   gateway: "192.168.1.1",      // shown on the tile
+  // },
 
   // Alerting via ntfy. Remove this block (or leave it out) to disable alerts.
   // ntfy topics are their own auth — keep the URL private.

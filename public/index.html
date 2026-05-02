@@ -276,15 +276,15 @@ footer .prompt { color: var(--green); margin-right: 0.5ch; }
         <div class="tile-foot"><span class="prompt">$</span><span id="monFoot">probing /api/stats…</span></div>
       </a>
 
-      <a class="tile" href="https://192.168.1.1" data-accent="network" data-status="idle" id="networkTile" rel="noopener">
+      <a class="tile" href="#" data-accent="network" data-status="idle" id="networkTile" rel="noopener" hidden>
         <div class="tile-head">
           <span class="tile-status-dot"></span>
           <span class="tile-title">network</span>
           <span class="tile-arrow">→</span>
         </div>
         <div class="tile-body">
-          <div class="tile-stat-line"><span class="bullet">▸</span><span class="value">unifi <strong>controller</strong></span></div>
-          <div class="tile-stat-line"><span class="bullet">▸</span><span class="value">gateway · <strong>192.168.1.1</strong></span></div>
+          <div class="tile-stat-line"><span class="bullet">▸</span><span class="value" id="networkLabel">unifi <strong>controller</strong></span></div>
+          <div class="tile-stat-line" id="networkGatewayLine" hidden><span class="bullet">▸</span><span class="value">gateway · <strong id="networkGateway"></strong></span></div>
         </div>
         <div class="tile-foot"><span class="prompt">$</span>launch unifi app</div>
       </a>
@@ -460,12 +460,34 @@ function renderLights(snap) {
   footEl.textContent = onCount > 0 ? `${onCount} active` : 'idle';
 }
 
-const NETWORK_FALLBACK_URL = 'https://192.168.1.1';
 const UNIFI_IOS_SCHEME = 'unifi-network://';
 const UNIFI_ANDROID_SCHEME = 'unifi-network';
 const UNIFI_ANDROID_PACKAGE = 'com.ubnt.easyunifi';
+let networkFallbackUrl = null;
+
+async function configureNetworkTile() {
+  const tile = document.getElementById('networkTile');
+  try {
+    const r = await fetch('/api/landing-config');
+    if (!r.ok) return;
+    const cfg = await r.json();
+    if (!cfg.network || !cfg.network.url) return;
+    networkFallbackUrl = cfg.network.url;
+    tile.href = cfg.network.url;
+    if (cfg.network.label) {
+      document.getElementById('networkLabel').innerHTML =
+        cfg.network.label.replace(/(\S+)$/, '<strong>$1</strong>');
+    }
+    if (cfg.network.gateway) {
+      document.getElementById('networkGateway').textContent = cfg.network.gateway;
+      document.getElementById('networkGatewayLine').hidden = false;
+    }
+    tile.hidden = false;
+  } catch {}
+}
 
 document.getElementById('networkTile').addEventListener('click', (e) => {
+  if (!networkFallbackUrl) { e.preventDefault(); return; }
   const ua = navigator.userAgent;
   const isIOS = /iPad|iPhone|iPod/.test(ua) || (/Macintosh/.test(ua) && 'ontouchend' in document);
   const isAndroid = /Android/.test(ua);
@@ -474,13 +496,13 @@ document.getElementById('networkTile').addEventListener('click', (e) => {
   e.preventDefault();
 
   if (isAndroid) {
-    const intent = `intent://#Intent;scheme=${UNIFI_ANDROID_SCHEME};package=${UNIFI_ANDROID_PACKAGE};S.browser_fallback_url=${encodeURIComponent(NETWORK_FALLBACK_URL)};end`;
+    const intent = `intent://#Intent;scheme=${UNIFI_ANDROID_SCHEME};package=${UNIFI_ANDROID_PACKAGE};S.browser_fallback_url=${encodeURIComponent(networkFallbackUrl)};end`;
     window.location.href = intent;
     return;
   }
 
   // iOS: try the deep link, fall back if the app didn't take over
-  const fallbackTimer = setTimeout(() => { window.location.href = NETWORK_FALLBACK_URL; }, 1500);
+  const fallbackTimer = setTimeout(() => { window.location.href = networkFallbackUrl; }, 1500);
   const cancelOnHide = () => {
     if (document.hidden) {
       clearTimeout(fallbackTimer);
@@ -491,6 +513,7 @@ document.getElementById('networkTile').addEventListener('click', (e) => {
   window.location.href = UNIFI_IOS_SCHEME;
 });
 
+configureNetworkTile();
 refreshMonitoring();
 probeLights();
 setInterval(() => { refreshMonitoring(); probeLights(); }, POLL_INTERVAL_MS);
