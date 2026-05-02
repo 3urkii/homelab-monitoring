@@ -201,10 +201,6 @@ h1 .tld {
   color: var(--cyan);
 }
 
-@media (max-width: 520px) {
-  .theme-picker-btn .tp-cmd { display: none; }
-}
-
 /* ============================================================
    Page header system
    ------------------------------------------------------------
