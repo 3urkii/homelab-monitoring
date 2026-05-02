@@ -305,6 +305,26 @@ function main() {
 
     app.get('/chat', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'chat.html')));
 
+    let agentInfoCache = { at: 0, value: null };
+    app.get('/api/chat/agent-info', async (_req, res) => {
+      if (!haClient.isConnected()) {
+        return res.status(503).json({ error: 'home assistant offline' });
+      }
+      const now = Date.now();
+      if (agentInfoCache.value && now - agentInfoCache.at < 60_000) {
+        return res.json(agentInfoCache.value);
+      }
+      try {
+        const info = await haClient.getConversationAgentInfo(
+          config.homeAssistant.conversationAgentId,
+        );
+        agentInfoCache = { at: now, value: info };
+        res.json(info);
+      } catch (err) {
+        res.status(502).json({ error: err.message });
+      }
+    });
+
     app.post('/api/chat', async (req, res) => {
       const { text, conversation_id } = req.body || {};
       if (typeof text !== 'string' || !text.trim()) {
