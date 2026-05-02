@@ -114,9 +114,26 @@
     if (stored && isKnown(stored)) applyTheme(stored);
     // else: pre-paint script already set whatever was stored; if invalid/none, default Dracula renders.
 
-    const target = document.querySelector('[data-theme-mount]') || document.querySelector('header');
-    if (!target) return;
-    target.appendChild(buildPicker());
+    // Theme picker mounts only where a page explicitly requests it ([data-theme-mount]).
+    // Sub-pages omit this so the header stays focused on page content.
+    const target = document.querySelector('[data-theme-mount]');
+    if (target) target.appendChild(buildPicker());
+
+    mountClocks();
+  }
+
+  function mountClocks() {
+    const nodes = document.querySelectorAll('[data-clock]');
+    if (!nodes.length) return;
+    function tick() {
+      const now = new Date();
+      const hh = String(now.getHours()).padStart(2, '0');
+      const mm = String(now.getMinutes()).padStart(2, '0');
+      const text = `${hh}:${mm}`;
+      nodes.forEach((n) => { n.textContent = text; });
+    }
+    tick();
+    setInterval(tick, 30_000);
   }
 
   if (document.readyState === 'loading') {

@@ -15,105 +15,21 @@
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Rajdhani:wght@500;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/uplot@1.6.31/dist/uPlot.min.css">
 <script>(function(){try{var t=localStorage.getItem('homelab.theme');if(t&&t!=='dracula')document.documentElement.setAttribute('data-theme',t);}catch(e){}}());</script>
+<link rel="stylesheet" href="/theme.css">
 <style>
-:root {
-  --bg: #282a36;
-  --bg-alt: #1e1f29;
-  --surface: #343746;
-  --current-line: #44475a;
-  --fg: #f8f8f2;
-  --comment: #6272a4;
-  --green: #50fa7b;
-  --yellow: #f1fa8c;
-  --orange: #ffb86c;
-  --red: #ff5555;
-  --pink: #ff79c6;
-  --purple: #bd93f9;
-  --cyan: #8be9fd;
-  --green-rgb: 80,250,123;
-  --yellow-rgb: 241,250,140;
-  --orange-rgb: 255,184,108;
-  --red-rgb: 255,85,85;
-  --pink-rgb: 255,121,198;
-  --purple-rgb: 189,147,249;
-  --cyan-rgb: 139,233,253;
-  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
-  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
-}
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 html { scroll-behavior: smooth; }
 body {
   background: var(--bg);
   color: var(--fg);
   font-family: Rajdhani, "JetBrains Mono", monospace;
   min-height: 100vh;
-  color-scheme: dark;
   overflow-x: hidden;
 }
-body::after {
-  content: "";
-  position: fixed; inset: 0;
-  background: repeating-linear-gradient(to bottom, transparent 0, transparent 3px, rgba(0,0,0,0.04) 3px, rgba(0,0,0,0.04) 4px);
-  pointer-events: none; z-index: 9999;
-}
 
-header {
-  border-bottom: 1px solid var(--current-line);
-  background: linear-gradient(180deg, var(--bg-alt) 0%, var(--bg) 100%);
-  padding: 1.5rem 2rem;
-  display: flex; align-items: center; gap: 1.5rem;
-}
-.back-link {
-  color: var(--comment);
-  text-decoration: none;
-  font-family: "JetBrains Mono", monospace;
-  font-size: 0.78rem;
-  transition: color 140ms var(--ease-out);
-}
-@media (hover: hover) and (pointer: fine) {
-  .back-link:hover { color: var(--purple); }
-}
-h1 {
-  font-family: "JetBrains Mono", monospace;
-  font-size: 2rem; font-weight: 700; letter-spacing: -0.02em;
-}
-h1 .domain { color: var(--purple); text-shadow: 0 0 24px rgba(var(--purple-rgb), 0.45); }
-h1 .tld    { color: var(--pink);   text-shadow: 0 0 24px rgba(var(--pink-rgb), 0.45); }
-h1 .sub    { color: var(--comment); font-size: 0.6em; font-weight: 400; }
-.status-chip {
-  font-family: "JetBrains Mono", monospace;
-  font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.08em;
-  color: var(--comment);
-  display: inline-flex; align-items: center; gap: 0.4rem;
-}
-.status-chip .dot {
-  width: 8px; height: 8px; border-radius: 50%;
-  background: var(--comment); animation: pulse 2.5s var(--ease-in-out) infinite;
-}
-.status-chip[data-status="up"]      .dot { background: var(--green);  box-shadow: 0 0 6px var(--green); }
-.status-chip[data-status="loading"] .dot { background: var(--yellow); box-shadow: 0 0 6px var(--yellow); }
-.status-chip[data-status="down"]    .dot { background: var(--red);    box-shadow: 0 0 6px var(--red); }
-@keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.45; } }
-.last-poll {
-  margin-left: auto;
-  font-family: "JetBrains Mono", monospace;
-  font-size: 0.78rem; color: var(--comment);
-}
-.last-poll .prompt { color: var(--green); margin-right: 0.5ch; }
-.refresh {
-  background: transparent; border: 1px solid var(--current-line);
-  color: var(--fg); padding: 0.35rem 0.7rem; border-radius: 4px;
-  font-family: "JetBrains Mono", monospace; cursor: pointer;
-  transition: border-color 140ms var(--ease-out), background 140ms var(--ease-out), transform 160ms var(--ease-out);
-}
-.refresh:active { transform: scale(0.97); }
-@media (hover: hover) and (pointer: fine) {
-  .refresh:hover { border-color: var(--purple); background: rgba(var(--purple-rgb), 0.08); }
-}
 
 main {
   max-width: 1200px; margin: 0 auto;
-  padding: 2rem; display: flex; flex-direction: column; gap: 2.5rem;
+  padding: 1.25rem 1.5rem; display: flex; flex-direction: column; gap: 1.25rem;
 }
 .section-title {
   font-family: Rajdhani, monospace;
@@ -412,16 +328,19 @@ footer .prompt { color: var(--green); margin-right: 0.5ch; }
   .status-chip .dot { animation: none; }
 }
 </style>
-<link rel="stylesheet" href="/theme.css">
 <script src="/theme.js" defer></script>
 </head>
 <body>
-<header>
-  <a href="/" class="back-link">&larr; home</a>
-  <h1><span class="bracket">[</span><span class="domain">burkii</span><span class="tld">.home</span><span class="bracket">]</span> <span class="sub">/ minecraft</span></h1>
-  <div class="status-chip" id="planStatus" data-status="loading"><span class="dot"></span><span id="planStatusLabel">connecting</span></div>
-  <div class="last-poll"><span class="prompt">$</span><span id="lastRefresh">loading&hellip;</span></div>
-  <button class="refresh" id="refreshBtn" title="Refresh">&#x27F3;</button>
+<header class="page-header page-header--sub">
+  <a class="back-btn" href="/" aria-label="back to dashboard">&larr;</a>
+  <span class="brand brand--compact">
+    <span class="brand-mark">burkii</span><span class="brand-sub">/minecraft</span>
+  </span>
+  <div class="header-tools">
+    <div class="status-chip" id="planStatus" data-status="loading"><span class="dot"></span><span id="planStatusLabel">connecting</span></div>
+    <div class="last-poll"><span class="prompt">$</span><span id="lastRefresh">loading&hellip;</span></div>
+    <button class="refresh-btn" id="refreshBtn" title="Refresh">&#x27F3;</button>
+  </div>
 </header>
 <main>
   <div class="error-banner" id="errorBanner"></div>
