@@ -12,6 +12,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Rajdhani:wght@500;700&display=swap" rel="stylesheet">
+<script>(function(){try{var t=localStorage.getItem('homelab.theme');if(t&&t!=='dracula')document.documentElement.setAttribute('data-theme',t);}catch(e){}}());</script>
 <style>
 :root {
   --bg: #282a36;
@@ -27,6 +28,13 @@
   --pink: #ff79c6;
   --purple: #bd93f9;
   --cyan: #8be9fd;
+  --green-rgb: 80,250,123;
+  --yellow-rgb: 241,250,140;
+  --orange-rgb: 255,184,108;
+  --red-rgb: 255,85,85;
+  --pink-rgb: 255,121,198;
+  --purple-rgb: 189,147,249;
+  --cyan-rgb: 139,233,253;
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
 }
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -59,8 +67,8 @@ h1 {
   font-size: 1.7rem; font-weight: 700; letter-spacing: -0.02em;
 }
 h1 .bracket { color: var(--comment); }
-h1 .domain  { color: var(--purple); text-shadow: 0 0 24px rgba(189,147,249,0.45); }
-h1 .tld     { color: var(--pink);   text-shadow: 0 0 24px rgba(255,121,198,0.45); }
+h1 .domain  { color: var(--purple); text-shadow: 0 0 24px rgba(var(--purple-rgb), 0.45); }
+h1 .tld     { color: var(--pink);   text-shadow: 0 0 24px rgba(var(--pink-rgb), 0.45); }
 h1 .sub     { color: var(--cyan); font-size: 0.85em; margin-left: 0.4ch; }
 
 .header-actions { display: flex; align-items: center; gap: 0.75rem; margin-left: auto; }
@@ -76,7 +84,7 @@ h1 .sub     { color: var(--cyan); font-size: 0.85em; margin-left: 0.4ch; }
   padding: 0.4rem 0.9rem; border-radius: 4px; cursor: pointer;
   transition: background 140ms var(--ease-out);
 }
-.all-off-btn:hover { background: rgba(255,85,85,0.1); }
+.all-off-btn:hover { background: rgba(var(--red-rgb), 0.1); }
 .all-off-btn:active { transform: scale(0.97); }
 .all-off-btn[disabled] { opacity: 0.4; cursor: default; }
 .status-chip {
@@ -101,7 +109,7 @@ main {
 .section-title .accent { color: var(--pink); margin-right: 0.5ch; }
 
 .error-banner {
-  background: rgba(255,85,85,0.08); border: 1px solid var(--red); border-radius: 4px;
+  background: rgba(var(--red-rgb), 0.08); border: 1px solid var(--red); border-radius: 4px;
   padding: 0.7rem 1rem; color: var(--red);
   font-family: "JetBrains Mono", monospace; font-size: 0.85rem;
   display: none;
@@ -149,7 +157,7 @@ main {
 .room-card[data-on="true"] .power-orb,
 .power-orb[data-on="true"] {
   border-color: var(--green); color: var(--green);
-  box-shadow: 0 0 12px rgba(80,250,123,0.35);
+  box-shadow: 0 0 12px rgba(var(--green-rgb), 0.35);
 }
 .power-orb:active { transform: scale(0.94); }
 .room-card-info { flex: 1; min-width: 0; cursor: pointer; }
@@ -174,7 +182,7 @@ main {
   padding: 0.3rem 0.6rem; border-radius: 4px; cursor: pointer;
   transition: border-color 140ms var(--ease-out), background 140ms var(--ease-out);
 }
-.scene-chip:hover { border-color: var(--cyan); background: rgba(139,233,253,0.08); }
+.scene-chip:hover { border-color: var(--cyan); background: rgba(var(--cyan-rgb), 0.08); }
 .scene-chip:active { transform: scale(0.97); }
 .scene-chip[data-more="true"] { color: var(--comment); cursor: pointer; }
 
@@ -302,6 +310,8 @@ input[type=range].brightness {
   .sheet-inner { max-height: 90vh; }
 }
 </style>
+<link rel="stylesheet" href="/theme.css">
+<script src="/theme.js" defer></script>
 </head>
 <body>
 <header>
@@ -488,7 +498,7 @@ function roomMetaText(room) {
 function glowFor(room) {
   const onColor = room.lights.find((l) => l.on && l.reachable && l.rgb);
   if (onColor) return `rgba(${onColor.rgb.join(',')}, 0.22)`;
-  if (roomAnyOn(room)) return 'rgba(255, 184, 108, 0.18)';
+  if (roomAnyOn(room)) return 'rgba(var(--orange-rgb),  0.18)';
   return 'transparent';
 }
 
