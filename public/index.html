@@ -312,7 +312,7 @@ footer .prompt { color: var(--green); margin-right: 0.5ch; }
           <div class="tile-stat-line"><span class="bullet">▸</span><span class="value">talk to <strong>nabu</strong></span></div>
           <div class="tile-stat-line"><span class="bullet">▸</span><span class="value" id="chatAgent"><span class="dim">probing assist agent…</span></span></div>
         </div>
-        <div class="tile-foot"><span class="prompt">$</span><span id="chatFoot">via home assistant assist</span></div>
+        <div class="tile-foot"><span class="prompt">$</span><span id="chatFoot">via home assistant</span></div>
       </a>
 
     </div>
@@ -406,7 +406,7 @@ function setChatTile(haAvailable, haOnline) {
   }
   tile.classList.remove('unavailable');
   tile.dataset.status = 'up';
-  footEl.textContent = 'via home assistant assist';
+  footEl.textContent = 'via home assistant';
   if (!chatAgentInfoFetched) {
     chatAgentInfoFetched = true;
     fetchChatAgentInfo();
