@@ -1,0 +1,122 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="house — skeuomorphic purple on dark squircle, glowing">
+  <defs>
+    <!-- Deeper squircle with subtle vignette -->
+    <radialGradient id="squircle" cx="50%" cy="40%" r="75%">
+      <stop offset="0"   stop-color="#3e4253"/>
+      <stop offset="0.6" stop-color="#23252f"/>
+      <stop offset="1"   stop-color="#15161e"/>
+    </radialGradient>
+
+    <!-- Layer fills, all radial bright-center -->
+    <radialGradient id="L1" cx="50%" cy="55%" r="65%">
+      <stop offset="0"   stop-color="#bd93f9"/>
+      <stop offset="0.7" stop-color="#9b6ff0"/>
+      <stop offset="1"   stop-color="#6e4ec9"/>
+    </radialGradient>
+    <radialGradient id="L2" cx="50%" cy="55%" r="60%">
+      <stop offset="0"   stop-color="#dec1ff"/>
+      <stop offset="1"   stop-color="#bd93f9"/>
+    </radialGradient>
+    <radialGradient id="L3" cx="50%" cy="55%" r="60%">
+      <stop offset="0"   stop-color="#ffc0e2"/>
+      <stop offset="1"   stop-color="#ff79c6"/>
+    </radialGradient>
+    <radialGradient id="L4" cx="50%" cy="50%" r="65%">
+      <stop offset="0"   stop-color="#ffffff"/>
+      <stop offset="0.6" stop-color="#ffe4f1"/>
+      <stop offset="1"   stop-color="#ff8fcc"/>
+    </radialGradient>
+
+    <!-- Multi-layer ambient halo: large purple + tighter pink core -->
+    <radialGradient id="ambientHalo" cx="50%" cy="62%" r="55%">
+      <stop offset="0"   stop-color="#ff79c6" stop-opacity="0.55"/>
+      <stop offset="0.35" stop-color="#bd93f9" stop-opacity="0.45"/>
+      <stop offset="1"   stop-color="#bd93f9" stop-opacity="0"/>
+    </radialGradient>
+
+    <filter id="rim" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="3"/>
+    </filter>
+    <filter id="halo-blur" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="28"/>
+    </filter>
+    <filter id="hearth-glow" x="-100%" y="-100%" width="300%" height="300%">
+      <feGaussianBlur stdDeviation="14" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="edge-glow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="6" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="soft-blur" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="8"/>
+    </filter>
+
+    <clipPath id="squircle-clip">
+      <rect width="512" height="512" rx="112" ry="112"/>
+    </clipPath>
+  </defs>
+
+  <rect width="512" height="512" rx="112" ry="112" fill="url(#squircle)"/>
+
+  <g clip-path="url(#squircle-clip)">
+    <!-- Big ambient pink+purple halo, casts off the hearth -->
+    <rect x="20" y="120" width="472" height="380" fill="url(#ambientHalo)" filter="url(#halo-blur)"/>
+
+    <!-- Outer-house drop shadow under the silhouette -->
+    <g opacity="0.55" filter="url(#soft-blur)">
+      <path d="M 256 116 L 348 200 L 348 168 L 400 168 L 400 248 L 440 284 L 440 460 L 72 460 L 72 284 Z" fill="#000000"/>
+    </g>
+
+    <!-- Outer purple rim glow (silhouette + glow filter, drawn slightly larger behind main) -->
+    <g opacity="0.55" filter="url(#edge-glow)">
+      <path d="M 256 100 L 348 184 L 348 152 L 400 152 L 400 232 L 440 268 L 440 444 L 72 444 L 72 268 Z"
+            fill="#bd93f9"/>
+    </g>
+
+    <!-- ========= LAYER 1: outer house ========= -->
+    <path d="M 256 100 L 348 184 L 348 152 L 400 152 L 400 232 L 440 268 L 440 444 L 72 444 L 72 268 Z"
+          fill="url(#L1)"/>
+    <!-- Roof specular highlights -->
+    <path d="M 256 102 Q 300 142 344 182" stroke="#ffffff" stroke-width="3" stroke-linecap="round" opacity="0.65" fill="none"/>
+    <path d="M 256 102 Q 212 142 168 182" stroke="#ffffff" stroke-width="2" stroke-linecap="round" opacity="0.4" fill="none"/>
+    <!-- Tiny chimney top highlight -->
+    <line x1="350" y1="153" x2="398" y2="153" stroke="#ffffff" stroke-width="2" stroke-linecap="round" opacity="0.55"/>
+
+    <!-- ========= LAYER 2 ========= -->
+    <g transform="translate(256 444) scale(0.78) translate(-256 -444)">
+      <g transform="translate(0 -5)" filter="url(#rim)" opacity="0.6">
+        <path d="M 256 100 L 440 268 L 440 444 L 72 444 L 72 268 Z" fill="#3e2470"/>
+      </g>
+      <path d="M 256 100 L 440 268 L 440 444 L 72 444 L 72 268 Z" fill="url(#L2)"/>
+      <path d="M 256 105 Q 348 180 436 268" stroke="#ffffff" stroke-width="2" opacity="0.4" fill="none"/>
+    </g>
+
+    <!-- ========= LAYER 3: pink, with warm edge glow ========= -->
+    <g transform="translate(256 444) scale(0.55) translate(-256 -444)">
+      <g transform="translate(0 -7)" filter="url(#rim)" opacity="0.5">
+        <path d="M 256 100 L 440 268 L 440 444 L 72 444 L 72 268 Z" fill="#7e58d4"/>
+      </g>
+      <!-- Pink edge glow that bleeds out -->
+      <g opacity="0.7" filter="url(#edge-glow)">
+        <path d="M 256 100 L 440 268 L 440 444 L 72 444 L 72 268 Z" fill="#ff79c6"/>
+      </g>
+      <path d="M 256 100 L 440 268 L 440 444 L 72 444 L 72 268 Z" fill="url(#L3)"/>
+      <path d="M 256 105 Q 348 180 436 268" stroke="#ffffff" stroke-width="3" opacity="0.45" fill="none"/>
+    </g>
+
+    <!-- ========= LAYER 4: glowing white-pink hearth ========= -->
+    <g transform="translate(256 444) scale(0.32) translate(-256 -444)" filter="url(#hearth-glow)">
+      <g transform="translate(0 -10)" filter="url(#rim)" opacity="0.65">
+        <path d="M 256 100 L 440 268 L 440 444 L 72 444 L 72 268 Z" fill="#ff79c6"/>
+      </g>
+      <path d="M 256 100 L 440 268 L 440 444 L 72 444 L 72 268 Z" fill="url(#L4)"/>
+    </g>
+
+    <!-- Tiny bright spark at hearth peak -->
+    <circle cx="256" cy="346" r="4" fill="#ffffff" opacity="0.85"/>
+  </g>
+
+  <!-- Inner squircle stroke for that polished frame -->
+  <rect x="2" y="2" width="508" height="508" rx="110" ry="110" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>
+</svg>
