@@ -309,8 +309,8 @@ footer .prompt { color: var(--green); margin-right: 0.5ch; }
           <span class="tile-arrow">→</span>
         </div>
         <div class="tile-body">
+          <div class="tile-stat-line"><span class="bullet">▸</span><span class="value">talk to <strong>nabu</strong></span></div>
           <div class="tile-stat-line"><span class="bullet">▸</span><span class="value" id="chatAgent"><span class="dim">probing assist agent…</span></span></div>
-          <div class="tile-stat-line"><span class="bullet">▸</span><span class="value">talk to <strong>home</strong></span></div>
         </div>
         <div class="tile-foot"><span class="prompt">$</span><span id="chatFoot">via home assistant assist</span></div>
       </a>
@@ -364,6 +364,29 @@ async function refreshMonitoring() {
   }
 }
 
+let chatAgentInfoFetched = false;
+async function fetchChatAgentInfo() {
+  const agentEl = document.getElementById('chatAgent');
+  try {
+    const r = await fetch('/api/chat/agent-info');
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    const info = await r.json();
+    if (info && info.model) {
+      agentEl.innerHTML = `model · <strong>${escapeHtml(info.model)}</strong>`;
+    } else {
+      agentEl.innerHTML = `model · <strong>unknown</strong>`;
+    }
+  } catch {
+    agentEl.innerHTML = `model · <strong>unknown</strong>`;
+  }
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, (c) => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+  })[c]);
+}
+
 function setChatTile(haAvailable, haOnline) {
   const tile = document.getElementById('chatTile');
   const agentEl = document.getElementById('chatAgent');
@@ -378,12 +401,16 @@ function setChatTile(haAvailable, haOnline) {
     tile.dataset.status = 'down';
     agentEl.innerHTML = `<span class="dim">home assistant offline</span>`;
     footEl.textContent = 'reconnecting…';
+    chatAgentInfoFetched = false;
     return;
   }
   tile.classList.remove('unavailable');
   tile.dataset.status = 'active';
-  agentEl.innerHTML = `talk to <strong>home</strong> in plain english`;
   footEl.textContent = 'via home assistant assist';
+  if (!chatAgentInfoFetched) {
+    chatAgentInfoFetched = true;
+    fetchChatAgentInfo();
+  }
 }
 
 async function probeLights() {
@@ -496,20 +523,11 @@ document.getElementById('networkTile').addEventListener('click', (e) => {
   e.preventDefault();
 
   if (isAndroid) {
-    const intent = `intent://#Intent;scheme=${UNIFI_ANDROID_SCHEME};package=${UNIFI_ANDROID_PACKAGE};S.browser_fallback_url=${encodeURIComponent(networkFallbackUrl)};end`;
+    const intent = `intent://#Intent;scheme=${UNIFI_ANDROID_SCHEME};package=${UNIFI_ANDROID_PACKAGE};end`;
     window.location.href = intent;
     return;
   }
 
-  // iOS: try the deep link, fall back if the app didn't take over
-  const fallbackTimer = setTimeout(() => { window.location.href = networkFallbackUrl; }, 1500);
-  const cancelOnHide = () => {
-    if (document.hidden) {
-      clearTimeout(fallbackTimer);
-      document.removeEventListener('visibilitychange', cancelOnHide);
-    }
-  };
-  document.addEventListener('visibilitychange', cancelOnHide);
   window.location.href = UNIFI_IOS_SCHEME;
 });
 
