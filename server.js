@@ -135,6 +135,7 @@ function main() {
 
   const app = express();
   app.use(express.json({ limit: '64kb' }));
+  app.get('/monitoring', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'monitoring.html')));
   app.get('/api/stats', (_req, res) => res.json(poller.getState()));
 
   app.get('/api/history', (req, res) => {

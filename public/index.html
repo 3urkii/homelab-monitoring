@@ -3,17 +3,16 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>burkii.status</title>
+<title>burkii.home</title>
 <link rel="icon" href="/favicon.ico">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="burkii.status">
+<meta name="apple-mobile-web-app-title" content="burkii.home">
 <meta name="theme-color" content="#282a36">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Rajdhani:wght@500;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/uplot@1.6.31/dist/uPlot.min.css">
 <style>
 :root {
   --bg: #282a36;
@@ -33,33 +32,29 @@
   --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
 }
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-html { scroll-behavior: smooth; }
 body {
   background: var(--bg);
   color: var(--fg);
   font-family: Rajdhani, "JetBrains Mono", monospace;
   min-height: 100vh;
   color-scheme: dark;
-  overflow-x: hidden;
+  display: flex; flex-direction: column;
 }
-body::after {
-  content: "";
-  position: fixed; inset: 0;
-  background: repeating-linear-gradient(to bottom, transparent 0, transparent 3px, rgba(0,0,0,0.04) 3px, rgba(0,0,0,0.04) 4px);
-  pointer-events: none; z-index: 9999;
-}
+
 header {
   border-bottom: 1px solid var(--current-line);
   background: linear-gradient(180deg, var(--bg-alt) 0%, var(--bg) 100%);
   padding: 1.5rem 2rem;
-  display: flex; align-items: center; gap: 1.5rem;
+  display: flex; align-items: center; gap: 1.5rem; flex-wrap: wrap;
 }
-h1 {
+.brand {
   font-family: "JetBrains Mono", monospace;
   font-size: 2rem; font-weight: 700; letter-spacing: -0.02em;
 }
-h1 .domain { color: var(--purple); text-shadow: 0 0 24px rgba(189,147,249,0.45); }
-h1 .tld    { color: var(--pink);   text-shadow: 0 0 24px rgba(255,121,198,0.45); }
+.brand .bracket { color: var(--comment); }
+.brand .domain  { color: var(--purple); text-shadow: 0 0 24px rgba(189,147,249,0.45); }
+.brand .tld     { color: var(--pink);   text-shadow: 0 0 24px rgba(255,121,198,0.45); }
+
 .status-chip {
   font-family: "JetBrains Mono", monospace;
   font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.08em;
@@ -73,1066 +68,390 @@ h1 .tld    { color: var(--pink);   text-shadow: 0 0 24px rgba(255,121,198,0.45);
 .status-chip[data-status="up"]       .dot { background: var(--green);  box-shadow: 0 0 6px var(--green); }
 .status-chip[data-status="degraded"] .dot { background: var(--yellow); box-shadow: 0 0 6px var(--yellow); }
 .status-chip[data-status="down"]     .dot { background: var(--red);    box-shadow: 0 0 6px var(--red); }
-.last-poll {
+@keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.45; } }
+
+.clock {
   margin-left: auto;
   font-family: "JetBrains Mono", monospace;
   font-size: 0.78rem; color: var(--comment);
 }
-.last-poll .prompt { color: var(--green); margin-right: 0.5ch; }
-.refresh {
-  background: transparent; border: 1px solid var(--current-line);
-  color: var(--fg); padding: 0.35rem 0.7rem; border-radius: 4px;
-  font-family: "JetBrains Mono", monospace; cursor: pointer;
-  transition: border-color 140ms var(--ease-out), background 140ms var(--ease-out), transform 160ms var(--ease-out);
-}
-.refresh:active { transform: scale(0.97); }
-@media (hover: hover) and (pointer: fine) {
-  .refresh:hover { border-color: var(--purple); background: rgba(189,147,249,0.08); }
-}
-@keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.45; } }
+.clock .prompt { color: var(--green); margin-right: 0.5ch; }
 
 main {
-  max-width: 1200px; margin: 0 auto;
-  padding: 2rem; display: flex; flex-direction: column; gap: 2.5rem;
+  width: 100%;
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 2.75rem 2rem 1.5rem;
+  display: flex; flex-direction: column; gap: 2rem;
 }
+
+.hero {
+  display: flex; flex-direction: column; gap: 0.5rem;
+}
+.hero-prompt {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.8rem;
+  color: var(--comment);
+  letter-spacing: 0.04em;
+}
+.hero-prompt .prompt { color: var(--green); margin-right: 0.5ch; }
+.hero-tagline {
+  font-family: Rajdhani, monospace;
+  font-size: 1.5rem; font-weight: 500;
+  letter-spacing: 0.01em;
+  color: var(--fg);
+}
+.hero-tagline .accent { color: var(--purple); }
+
 .section-title {
   font-family: Rajdhani, monospace;
-  font-size: 0.85rem; font-weight: 700; text-transform: uppercase;
-  letter-spacing: 0.15em; color: var(--comment);
+  font-size: 0.78rem; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.14em; color: var(--comment);
+  margin-bottom: 0.75rem;
 }
-.section-title .accent { color: var(--pink); margin-right: 0.5ch; }
+.section-title .accent { color: var(--pink); margin-right: 0.5ch; opacity: 0.7; }
 
-.machines-grid { display: grid; gap: 1.25rem; grid-template-columns: repeat(auto-fit, minmax(380px, 1fr)); align-items: start; }
+.tile-grid {
+  display: grid; gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  align-items: stretch;
+}
 
-.card {
+.tile {
   position: relative;
+  display: flex; flex-direction: column;
+  min-height: 168px;
+  padding: 1.25rem 1.5rem 1.25rem 1.65rem;
   background: var(--surface);
   border: 1px solid var(--current-line);
   border-radius: 4px;
-  padding: 1.25rem 1.25rem 1.25rem 1.5rem;
-  transition: border-color 200ms var(--ease-out);
-  overflow: hidden;
-  animation: cardEntry 300ms var(--ease-out) both;
+  text-decoration: none;
+  color: inherit;
+  transition:
+    border-color 200ms var(--ease-out),
+    background 200ms var(--ease-out),
+    transform 200ms var(--ease-out);
+  animation: tileEntry 380ms var(--ease-out) both;
 }
-.machines-grid .card:nth-child(1) { animation-delay: 0ms; }
-.machines-grid .card:nth-child(2) { animation-delay: 60ms; }
-.machines-grid .card:nth-child(3) { animation-delay: 120ms; }
-.machines-grid .card:nth-child(4) { animation-delay: 180ms; }
-@keyframes cardEntry {
-  from { opacity: 0; transform: translateY(8px); }
+.tile-grid > .tile:nth-child(1) { animation-delay: 60ms; }
+.tile-grid > .tile:nth-child(2) { animation-delay: 130ms; }
+.tile-grid > .tile:nth-child(3) { animation-delay: 200ms; }
+@keyframes tileEntry {
+  from { opacity: 0; transform: translateY(6px); }
   to   { opacity: 1; transform: translateY(0); }
 }
-.card::before {
+.tile::before {
   content: ""; position: absolute; inset-block: 0; left: 0;
-  width: 3px; background: var(--purple); opacity: 0.8;
+  width: 2px; background: var(--purple); opacity: 0.5;
   border-radius: 4px 0 0 4px;
+  transition: opacity 200ms var(--ease-out);
 }
-.card::after {
-  content: ""; position: absolute; bottom: 0; right: 0;
-  width: 0; height: 0; border-style: solid; border-width: 0 0 18px 18px;
-  border-color: transparent transparent var(--current-line) transparent; opacity: 0.5;
-}
-.card[data-status="down"] { border-color: var(--red); }
-.card[data-status="down"]::before { background: var(--red); }
+.tile[data-accent="lights"]::before { background: var(--pink); }
 
-.card-header {
-  display: flex; align-items: center; gap: 0.6rem; margin-bottom: 1rem;
+@media (hover: hover) and (pointer: fine) {
+  .tile:hover {
+    border-color: var(--purple);
+    background: rgba(189,147,249,0.04);
+  }
+  .tile[data-accent="lights"]:hover {
+    border-color: var(--pink);
+    background: rgba(255,121,198,0.04);
+  }
+  .tile:hover::before { opacity: 1; }
+  .tile:hover .tile-arrow { transform: translateX(3px); color: var(--purple); }
+  .tile[data-accent="lights"]:hover .tile-arrow { color: var(--pink); }
+  .tile:hover .tile-title { color: var(--purple); }
+  .tile[data-accent="lights"]:hover .tile-title { color: var(--pink); }
 }
-.card-name {
-  font-family: Rajdhani, monospace; font-weight: 700; text-transform: uppercase;
-  letter-spacing: 0.08em; font-size: 1.1rem; color: var(--fg);
-  text-shadow: 0 0 16px rgba(189,147,249,0.35);
+
+.tile-head {
+  display: flex; align-items: center; gap: 0.55rem;
+  margin-bottom: 0.85rem;
 }
-.card-status-dot {
-  width: 8px; height: 8px; border-radius: 50%;
+.tile-status-dot {
+  width: 7px; height: 7px; border-radius: 50%;
   background: var(--comment);
+  flex-shrink: 0;
 }
-.card[data-status="up"]   .card-status-dot { background: var(--green); box-shadow: 0 0 6px var(--green); }
-.card[data-status="down"] .card-status-dot { background: var(--red);   box-shadow: 0 0 6px var(--red); }
+.tile[data-status="up"] .tile-status-dot       { background: var(--green); }
+.tile[data-status="degraded"] .tile-status-dot { background: var(--yellow); }
+.tile[data-status="down"] .tile-status-dot     { background: var(--red); }
+.tile[data-status="active"] .tile-status-dot   { background: var(--pink); }
+.tile[data-status="idle"] .tile-status-dot     { background: var(--comment); }
 
-.stat-row { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.35rem; font-family: "JetBrains Mono", monospace; font-size: 0.78rem; }
-.stat-row .label   { color: var(--comment); width: 3.5rem; text-transform: uppercase; }
-.stat-row .bar     { flex: 1; height: 6px; background: var(--current-line); border-radius: 2px; overflow: hidden; }
-.stat-row .bar-fill{ height: 100%; background: var(--purple); width: 0; transition: width 280ms var(--ease-in-out), background 280ms ease; }
-.stat-row .value   { color: var(--fg); min-width: 5.5rem; text-align: right; }
-
-.bar-fill[data-level="low"]   { background: var(--purple); }
-.bar-fill[data-level="mid"]   { background: var(--cyan); }
-.bar-fill[data-level="high"]  { background: var(--orange); }
-.bar-fill[data-level="crit"]  { background: var(--red); }
-
-.net-row {
-  display: flex; justify-content: space-between;
-  font-family: "JetBrains Mono", monospace; font-size: 0.78rem;
-  color: var(--cyan); margin-top: 0.5rem;
-}
-.uptime-row {
-  font-family: "JetBrains Mono", monospace; font-size: 0.72rem;
-  color: var(--comment); margin-top: 0.4rem;
-}
-
-details.guests {
-  margin-top: 0.9rem;
-  border-top: 1px dashed var(--current-line);
-  padding-top: 0.7rem;
-}
-details.guests > summary {
-  cursor: pointer; list-style: none;
-  font-family: Rajdhani, monospace; font-weight: 700; text-transform: uppercase;
-  letter-spacing: 0.12em; font-size: 0.72rem; color: var(--comment);
-  margin-bottom: 0.5rem;
-}
-details.guests > summary::-webkit-details-marker { display: none; }
-details.guests > summary::before { content: "▸ "; color: var(--pink); }
-details.guests[open] > summary::before { content: "▾ "; }
-
-.card-name-link {
-  color: inherit;
-  text-decoration: none;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.3rem;
-  transition: color 140ms var(--ease-out);
-}
-.card-name-link::after {
-  content: "↗";
-  font-size: 0.68em;
-  opacity: 0.35;
-  transition: opacity 140ms var(--ease-out), transform 160ms var(--ease-out);
-}
-@media (hover: hover) and (pointer: fine) {
-  .card-name-link:hover { color: var(--purple); }
-  .card-name-link:hover::after { opacity: 0.9; transform: translate(2px, -2px); }
-}
-
-a.guest-row {
-  text-decoration: none;
-  color: inherit;
-  cursor: pointer;
-  transition: border-left-color 140ms var(--ease-out), transform 160ms var(--ease-out), background 140ms var(--ease-out);
-}
-a.guest-row:active { transform: scale(0.98); }
-@media (hover: hover) and (pointer: fine) {
-  a.guest-row:hover { background: var(--current-line); border-left-color: var(--purple); }
-  a.guest-row:hover .guest-row-head .guest-name { color: var(--purple); }
-}
-.guest-row-icon {
-  width: 18px; height: 18px;
-  display: flex; align-items: center; justify-content: center;
-  color: var(--purple);
-  filter: drop-shadow(0 0 4px var(--purple));
-  font-size: 0.58rem; font-weight: 700;
-}
-.guest-row-icon img { width: 18px; height: 18px; object-fit: contain; }
-.guest-row-head .guest-name {
-  transition: color 140ms var(--ease-out);
-}
-.guest-row-head .guest-link-arrow {
-  color: var(--comment);
-  font-size: 0.75em;
-  opacity: 0.4;
-  transition: opacity 140ms var(--ease-out), transform 160ms var(--ease-out);
-}
-@media (hover: hover) and (pointer: fine) {
-  a.guest-row:hover .guest-link-arrow { opacity: 0.9; color: var(--purple); transform: translate(2px, -2px); }
-}
-
-.guest-list { display: flex; flex-direction: column; gap: 0.4rem; }
-.guest-row {
-  display: flex; flex-direction: column; gap: 0.35rem;
-  padding: 0.55rem 0.65rem;
-  background: var(--bg-alt);
-  border-radius: 3px;
-  border-left: 2px solid var(--current-line);
-  font-family: "JetBrains Mono", monospace;
-  font-size: 0.72rem;
-}
-.guest-row[data-status="running"] { border-left-color: var(--green); }
-.guest-row[data-status="stopped"] { border-left-color: var(--comment); opacity: 0.55; }
-.guest-row-head {
-  display: flex; align-items: center; gap: 0.5rem;
-}
-.guest-row-head .guest-dot {
-  width: 6px; height: 6px; border-radius: 50%; background: var(--comment);
-}
-.guest-row[data-status="running"] .guest-row-head .guest-dot {
-  background: var(--green); box-shadow: 0 0 4px var(--green);
-}
-.guest-row-head .guest-name {
-  color: var(--fg);
+.tile-title {
   font-family: Rajdhani, monospace;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  font-size: 0.82rem;
+  font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.08em; font-size: 1.05rem;
+  color: var(--fg);
   flex: 1;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  transition: color 140ms var(--ease-out);
 }
-.guest-row-head .guest-type {
-  color: var(--comment); text-transform: uppercase; font-size: 0.62rem; letter-spacing: 0.06em;
-}
-.guest-row-head .guest-vmid { color: var(--comment); }
-.guest-row-head .guest-uptime { color: var(--comment); }
-.guest-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; }
-.mini-stat { display: flex; align-items: center; gap: 0.4rem; }
-.mini-stat .mini-label {
-  color: var(--comment); font-size: 0.62rem;
-  text-transform: uppercase; letter-spacing: 0.06em; width: 1.6rem;
-}
-.mini-stat .mini-bar {
-  flex: 1; height: 4px; background: var(--current-line);
-  border-radius: 2px; overflow: hidden;
-}
-.mini-stat .mini-fill {
-  height: 100%; background: var(--purple); width: 0;
-  transition: width 280ms var(--ease-in-out), background 280ms ease;
-}
-.mini-fill[data-level="low"]  { background: var(--purple); }
-.mini-fill[data-level="mid"]  { background: var(--cyan); }
-.mini-fill[data-level="high"] { background: var(--orange); }
-.mini-fill[data-level="crit"] { background: var(--red); }
-.mini-stat .mini-value { color: var(--fg); min-width: 2.5rem; text-align: right; font-size: 0.68rem; }
-.guest-net {
-  color: var(--cyan);
-  display: flex; justify-content: space-between;
-  font-size: 0.68rem;
-}
-
-/* ─── Plan analytics link ─── */
-.plan-analytics-link {
-  display: flex; align-items: center; justify-content: center;
-  margin-top: 0.35rem; padding: 0.3rem;
-  border-top: 1px dashed var(--current-line);
+.tile-arrow {
   font-family: "JetBrains Mono", monospace;
-  font-size: 0.62rem; color: var(--purple);
-  text-transform: uppercase; letter-spacing: 0.06em;
-  cursor: pointer;
-  transition: background 140ms var(--ease-out), color 140ms var(--ease-out);
-}
-@media (hover: hover) and (pointer: fine) {
-  .plan-analytics-link:hover { background: rgba(189,147,249,0.08); color: var(--pink); }
-}
-
-/* ─── Offline guests section ─── */
-.offline-guests summary {
-  cursor: pointer;
-  font-family: "JetBrains Mono", monospace;
-  font-size: 0.68rem;
+  font-size: 0.9rem;
   color: var(--comment);
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  padding: 0.4rem 0 0;
-  user-select: none;
+  transition: transform 200ms var(--ease-out), color 140ms var(--ease-out);
 }
 
-/* ─── Mobile responsive ─── */
-@media (max-width: 520px) {
-  header { padding: 1rem 1.25rem; gap: 0.75rem; flex-wrap: wrap; }
-  h1 { font-size: 1.5rem; }
-  .last-poll { margin-left: 0; font-size: 0.7rem; }
-  main { padding: 1rem; gap: 1.5rem; }
-  .machines-grid { grid-template-columns: 1fr; }
-  .card { padding: 1rem 1rem 1rem 1.25rem; }
-  .alerts-section { margin: 1rem; padding: 0.75rem 1rem; }
-  .chart-modal { padding: 0.75rem; }
-  .chart-modal-content { padding: 1rem; }
-  .guest-row-head .guest-type,
-  .guest-row-head .guest-vmid { display: none; }
-  .stat-row .label { width: 2.8rem; }
-  .stat-row .value { min-width: 4.5rem; font-size: 0.7rem; }
+.tile-body {
+  flex: 1;
+  display: flex; flex-direction: column; gap: 0.4rem;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.78rem;
+  color: var(--fg);
 }
+.tile-stat-line {
+  display: flex; align-items: center; gap: 0.45rem;
+  line-height: 1.5;
+  color: var(--comment);
+}
+.tile-stat-line .bullet { color: var(--current-line); }
+.tile-stat-line .value { color: var(--fg); }
+.tile-stat-line .value.dim { color: var(--comment); font-style: italic; }
+.tile-stat-line .value strong { color: var(--purple); font-weight: 700; }
+.tile[data-accent="lights"] .tile-stat-line .value strong { color: var(--pink); }
+.tile-stat-line .alert { color: var(--red); }
 
-.error-banner {
-  background: var(--surface); border: 1px solid var(--red); border-radius: 4px;
-  padding: 0.5rem 1rem; color: var(--red);
-  font-family: "JetBrains Mono", monospace; font-size: 0.78rem;
-  opacity: 0; transform: translateY(-4px);
-  transition: opacity 200ms var(--ease-out), transform 200ms var(--ease-out);
-  pointer-events: none; max-height: 0; overflow: hidden;
+.tile-foot {
+  margin-top: 0.85rem;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.68rem; color: var(--comment);
+  letter-spacing: 0.03em;
+  display: flex; align-items: center; gap: 0.4rem;
+  opacity: 0.7;
 }
-.error-banner.visible { opacity: 1; transform: translateY(0); pointer-events: auto; max-height: 4rem; }
+.tile-foot .prompt { color: var(--green); }
+
+.tile.unavailable {
+  opacity: 0.5;
+  pointer-events: none;
+}
 
 footer {
-  margin-top: 3rem; padding: 1.2rem 2rem;
-  border-top: 1px solid var(--current-line); background: var(--bg-alt);
+  padding: 1rem 2rem 1.5rem;
   text-align: center;
-  font-family: "JetBrains Mono", monospace; font-size: 0.72rem; color: var(--comment);
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.7rem; color: var(--comment);
+  opacity: 0.7;
 }
 footer .prompt { color: var(--green); margin-right: 0.5ch; }
 
-.chart-btn {
-  background: transparent;
-  border: 1px solid var(--current-line);
-  color: var(--comment);
-  width: 24px; height: 24px;
-  display: inline-flex; align-items: center; justify-content: center;
-  border-radius: 3px;
-  cursor: pointer;
-  font-family: "JetBrains Mono", monospace;
-  font-size: 0.66rem;
-  padding: 0;
-  transition: border-color 140ms var(--ease-out), color 140ms var(--ease-out), background 140ms var(--ease-out), transform 160ms var(--ease-out);
+@media (max-width: 520px) {
+  header { padding: 1rem 1.25rem; gap: 0.6rem; }
+  .clock { margin-left: 0; font-size: 0.7rem; }
+  main { padding: 2rem 1.25rem; gap: 1.5rem; }
+  .hero-tagline { font-size: 1.25rem; }
+  .tile { min-height: 150px; padding: 1.1rem 1.25rem 1.1rem 1.4rem; }
+  .tile-title { font-size: 1rem; }
 }
-.chart-btn::before { content: "▤"; }
-.chart-btn:active { transform: scale(0.97); }
-@media (hover: hover) and (pointer: fine) {
-  .chart-btn:hover { border-color: var(--purple); color: var(--purple); background: var(--bg-alt); }
-}
-.card-header .chart-btn { margin-left: auto; }
-.guest-row-head .chart-btn { margin-left: 0.25rem; width: 20px; height: 20px; font-size: 0.58rem; }
-
-.chart-modal {
-  position: fixed; inset: 0;
-  background: rgba(10, 10, 15, 0.72);
-  backdrop-filter: blur(4px);
-  -webkit-backdrop-filter: blur(4px);
-  display: flex; align-items: center; justify-content: center;
-  z-index: 10000;
-  padding: 2rem;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 220ms var(--ease-out);
-}
-.chart-modal.closing { transition-duration: 140ms; }
-.chart-modal.open { opacity: 1; pointer-events: auto; }
-.chart-modal-content {
-  background: var(--surface);
-  border: 1px solid var(--current-line);
-  border-radius: 4px;
-  padding: 1.5rem;
-  width: 100%;
-  max-width: 980px;
-  max-height: calc(100vh - 4rem);
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-  position: relative;
-  transform: scale(0.96) translateY(8px);
-  opacity: 0;
-  transition: transform 260ms var(--ease-out), opacity 220ms var(--ease-out);
-}
-.chart-modal.closing .chart-modal-content { transition-duration: 160ms, 140ms; }
-.chart-modal.open .chart-modal-content { transform: scale(1) translateY(0); opacity: 1; }
-.chart-modal-content::before {
-  content: ""; position: absolute; inset-block: 0; left: 0;
-  width: 3px; background: var(--purple); opacity: 0.8;
-  border-radius: 4px 0 0 4px;
-}
-.chart-modal-header {
-  display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;
-}
-.chart-modal-title {
-  font-family: Rajdhani, monospace; font-weight: 700; text-transform: uppercase;
-  letter-spacing: 0.08em; font-size: 1.1rem; color: var(--fg);
-  text-shadow: 0 0 16px rgba(189,147,249,0.35);
-  flex: 1;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-}
-.chart-modal-close {
-  background: transparent;
-  border: 1px solid var(--current-line);
-  color: var(--comment);
-  width: 30px; height: 30px;
-  border-radius: 3px;
-  cursor: pointer;
-  font-family: "JetBrains Mono", monospace;
-  font-size: 0.9rem;
-  padding: 0;
-  transition: border-color 140ms var(--ease-out), color 140ms var(--ease-out), transform 160ms var(--ease-out);
-}
-.chart-modal-close:active { transform: scale(0.97); }
-@media (hover: hover) and (pointer: fine) {
-  .chart-modal-close:hover { border-color: var(--red); color: var(--red); }
-}
-.chart-range-picker { display: flex; gap: 0.35rem; }
-.chart-range-btn {
-  background: transparent;
-  border: 1px solid var(--current-line);
-  color: var(--comment);
-  padding: 0.3rem 0.7rem;
-  border-radius: 3px;
-  cursor: pointer;
-  font-family: "JetBrains Mono", monospace;
-  font-size: 0.72rem;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  transition: border-color 140ms var(--ease-out), color 140ms var(--ease-out), background 140ms var(--ease-out), transform 160ms var(--ease-out);
-}
-.chart-range-btn:active { transform: scale(0.96); }
-.chart-range-btn[data-active="true"] {
-  border-color: var(--purple); color: var(--fg); background: var(--bg-alt);
-}
-@media (hover: hover) and (pointer: fine) {
-  .chart-range-btn:hover { border-color: var(--purple); color: var(--fg); }
-}
-.chart-reset-btn {
-  background: transparent;
-  border: 1px solid var(--red);
-  color: var(--red);
-  padding: 0.3rem 0.7rem;
-  border-radius: 3px;
-  cursor: pointer;
-  font-family: "JetBrains Mono", monospace;
-  font-size: 0.72rem;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 200ms var(--ease-out), border-color 140ms var(--ease-out), background 140ms var(--ease-out), transform 160ms var(--ease-out);
-}
-.chart-reset-btn.visible { opacity: 1; pointer-events: auto; }
-.chart-reset-btn:active { transform: scale(0.96); }
-@media (hover: hover) and (pointer: fine) {
-  .chart-reset-btn:hover { background: rgba(255,85,85,0.1); }
-}
-.chart-canvas {
-  flex: 1;
-  min-height: 360px;
-  position: relative;
-  background: var(--bg-alt);
-  border-radius: 3px;
-  padding: 0.5rem;
-}
-.chart-status {
-  position: absolute; inset: 0;
-  display: flex; align-items: center; justify-content: center;
-  color: var(--comment);
-  font-family: "JetBrains Mono", monospace;
-  font-size: 0.78rem;
-  pointer-events: none;
-}
-
-/* uPlot Dracula theme overrides */
-.u-wrap { background: transparent !important; }
-.u-axis { color: var(--comment) !important; }
-.u-legend {
-  color: var(--comment) !important;
-  font-family: "JetBrains Mono", monospace !important;
-  font-size: 0.72rem !important;
-}
-.u-legend .u-value { color: var(--fg) !important; }
-.u-legend .u-marker { width: 10px !important; height: 10px !important; }
-.u-select { background: rgba(189,147,249,0.18) !important; border: 1px solid var(--purple) !important; }
-.u-cursor-x, .u-cursor-y { background: var(--purple) !important; }
 
 @media (prefers-reduced-motion: reduce) {
-  .card { animation: none; }
-  .status-chip .dot,
-  .card-status-dot,
-  .guest-row-head .guest-dot { animation: none; }
-  .stat-row .bar-fill,
-  .mini-stat .mini-fill { transition: background 200ms ease; }
-  .refresh:active,
-  .inner-service-item:active { transform: none; }
-}
-.alerts-section {
-  margin: 1.5rem 2rem;
-  padding: 1rem 1.25rem;
-  background: var(--surface);
-  border: 1px solid var(--current-line);
-  border-radius: 6px;
-  font-family: "JetBrains Mono", monospace;
-}
-.alerts-section h2 {
-  font-size: 0.85rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--comment);
-  margin-bottom: 0.75rem;
-}
-.alerts-active-list,
-.alerts-history-list {
-  list-style: none;
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
-}
-.alert-row {
-  display: grid;
-  grid-template-columns: auto 1fr auto;
-  gap: 0.75rem;
-  align-items: center;
-  padding: 0.35rem 0.5rem;
-  border-radius: 4px;
-  font-size: 0.85rem;
-}
-.alert-row.firing { background: rgba(255, 85, 85, 0.08); color: var(--red); }
-.alert-row.resolved { color: var(--green); }
-.alert-row .target { color: var(--fg); }
-.alert-row .meta { color: var(--comment); font-size: 0.78rem; }
-.alerts-empty { color: var(--comment); font-size: 0.85rem; font-style: italic; }
-.alerts-history details > summary {
-  cursor: pointer;
-  color: var(--comment);
-  font-size: 0.78rem;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  padding: 0.5rem 0;
-  user-select: none;
+  .tile { animation: none; }
 }
 </style>
 </head>
 <body>
 <header>
-  <h1><span class="bracket">[</span><span class="domain">burkii</span><span class="tld">.status</span><span class="bracket">]</span></h1>
+  <h1 class="brand"><span class="bracket">[</span><span class="domain">burkii</span><span class="tld">.home</span><span class="bracket">]</span></h1>
   <div class="status-chip" id="globalStatus" data-status="down"><span class="dot"></span><span id="globalStatusLabel">booting</span></div>
-  <div class="last-poll"><span class="prompt">$</span><span id="lastPoll">waiting for first poll…</span></div>
-  <a href="/lights" class="refresh" id="lightsLink" title="Lights" hidden>lights</a>
-  <button class="refresh" id="refreshBtn" title="Force refresh">⟳</button>
+  <div class="clock"><span class="prompt">$</span><span id="clock">--:--</span></div>
 </header>
 <main>
-  <div class="error-banner" id="errorBanner">stats stale — retrying</div>
-  <section class="alerts-section" id="alerts-section" hidden>
-    <h2>Active Alerts</h2>
-    <ul class="alerts-active-list" id="alerts-active"></ul>
-    <div class="alerts-history">
-      <details>
-        <summary>History</summary>
-        <ul class="alerts-history-list" id="alerts-history"></ul>
-      </details>
-    </div>
+  <section class="hero">
+    <div class="hero-prompt"><span class="prompt">$</span>welcome home</div>
+    <div class="hero-tagline">choose a <span class="accent">destination</span></div>
   </section>
+
   <section>
-    <div class="section-title"><span class="accent">&gt;</span>MACHINES</div>
-    <div class="machines-grid" id="machinesGrid"></div>
+    <div class="section-title"><span class="accent">&gt;</span>services</div>
+    <div class="tile-grid" id="tileGrid">
+
+      <a class="tile" href="/monitoring" data-accent="monitoring" data-status="idle" id="monitoringTile">
+        <div class="tile-head">
+          <span class="tile-status-dot"></span>
+          <span class="tile-title">monitoring</span>
+          <span class="tile-arrow">→</span>
+        </div>
+        <div class="tile-body">
+          <div class="tile-stat-line"><span class="bullet">▸</span><span class="value" id="monMachines"><span class="dim">— machines</span></span></div>
+          <div class="tile-stat-line"><span class="bullet">▸</span><span class="value" id="monGuests"><span class="dim">— guests running</span></span></div>
+        </div>
+        <div class="tile-foot"><span class="prompt">$</span><span id="monFoot">probing /api/stats…</span></div>
+      </a>
+
+      <a class="tile" href="/lights" data-accent="lights" data-status="idle" id="lightsTile" hidden>
+        <div class="tile-head">
+          <span class="tile-status-dot"></span>
+          <span class="tile-title">lights</span>
+          <span class="tile-arrow">→</span>
+        </div>
+        <div class="tile-body">
+          <div class="tile-stat-line"><span class="bullet">▸</span><span class="value" id="lightsOn"><span class="dim">— of — lights on</span></span></div>
+          <div class="tile-stat-line"><span class="bullet">▸</span><span class="value" id="lightsRooms"><span class="dim">— rooms</span></span></div>
+        </div>
+        <div class="tile-foot"><span class="prompt">$</span><span id="lightsFoot">probing /api/lights…</span></div>
+      </a>
+
+    </div>
   </section>
 </main>
-<div class="chart-modal" id="chartModal" hidden>
-  <div class="chart-modal-content">
-    <div class="chart-modal-header">
-      <div class="chart-modal-title" id="chartModalTitle">—</div>
-      <div class="chart-range-picker" id="chartRangePicker">
-        <button class="chart-range-btn" type="button" data-range="1h">1h</button>
-        <button class="chart-range-btn" type="button" data-range="24h" data-active="true">24h</button>
-        <button class="chart-range-btn" type="button" data-range="7d">7d</button>
-        <button class="chart-range-btn" type="button" data-range="30d">30d</button>
-      </div>
-      <button class="chart-reset-btn" type="button" id="chartResetBtn" title="Reset zoom">RESET</button>
-      <button class="chart-modal-close" type="button" id="chartModalClose" title="Close (Esc)">✕</button>
-    </div>
-    <div class="chart-canvas" id="chartCanvas">
-      <div class="chart-status" id="chartStatus">loading…</div>
-    </div>
-  </div>
-</div>
-<footer><span class="prompt">$</span>homelab-dashboard — polling /api/stats every 5s</footer>
+<footer><span class="prompt">$</span>burkii.home — local home network hub</footer>
 <script>
 const POLL_INTERVAL_MS = 5000;
-let lastStatsOk = true;
-let planConfig = null;
-
-function formatBytes(n) {
-  if (n == null) return '—';
-  const units = ['B','KB','MB','GB','TB'];
-  let i = 0, v = n;
-  while (v >= 1024 && i < units.length - 1) { v /= 1024; i++; }
-  return `${v.toFixed(v >= 10 ? 0 : 1)} ${units[i]}`;
-}
-function formatRate(n) {
-  if (n == null) return '—';
-  return `${formatBytes(n)}/s`;
-}
-function formatPct(n) {
-  if (n == null) return '—';
-  return `${n.toFixed(0)}%`;
-}
-function formatUptime(sec) {
-  if (sec == null) return '—';
-  const d = Math.floor(sec / 86400);
-  const h = Math.floor((sec % 86400) / 3600);
-  const m = Math.floor((sec % 3600) / 60);
-  if (d > 0) return `${d}d ${h}h`;
-  if (h > 0) return `${h}h ${m}m`;
-  return `${m}m`;
-}
-function levelFor(pct) {
-  if (pct == null) return 'low';
-  if (pct < 60) return 'low';
-  if (pct < 80) return 'mid';
-  if (pct < 95) return 'high';
-  return 'crit';
-}
-function pctSafe(used, total) {
-  if (!total || total === 0) return null;
-  return (used / total) * 100;
-}
 
 function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, (c) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
 }
-function iconFallback(name) {
-  return String(name).replace(/[^a-z0-9]/gi, '').slice(0, 3).toUpperCase() || '???';
-}
 
-function renderMachineCard(machine, state) {
-  const card = document.createElement('article');
-  card.className = 'card';
-  card.dataset.machine = machine.name;
-  card.dataset.status = state.status;
-  const display = state.label ?? machine.name;
-  const nameHtml = state.primaryUrl
-    ? `<a class="card-name card-name-link" href="${escapeHtml(state.primaryUrl)}" target="_blank" rel="noopener">${escapeHtml(display)}</a>`
-    : `<span class="card-name">${escapeHtml(display)}</span>`;
-  card.innerHTML = `
-    <div class="card-header">
-      <span class="card-status-dot"></span>
-      ${nameHtml}
-      <button class="chart-btn" type="button" title="History graph"></button>
-    </div>
-    <div class="stats"></div>
-    <div class="net-row"><span class="rx">↓ —</span><span class="tx">↑ —</span></div>
-    <div class="uptime-row">up —</div>
-    <details class="guests" ${machine.type === 'proxmox' ? 'open' : 'hidden'}>
-      <summary>guests</summary>
-      <div class="guest-list"></div>
-      <details class="offline-guests"><summary>offline [0]</summary><div class="offline-list"></div></details>
-    </details>
-  `;
-  const stats = card.querySelector('.stats');
-  stats.innerHTML = [
-    statRow('CPU', null),
-    statRow('MEM', null),
-    statRow('DSK', null),
-  ].join('');
-  return card;
+function tickClock() {
+  const now = new Date();
+  const hh = String(now.getHours()).padStart(2, '0');
+  const mm = String(now.getMinutes()).padStart(2, '0');
+  document.getElementById('clock').textContent = `${hh}:${mm}`;
 }
-function statRow(label, pct) {
-  const level = levelFor(pct);
-  return `
-    <div class="stat-row" data-metric="${label.toLowerCase()}">
-      <span class="label">${label}</span>
-      <div class="bar"><div class="bar-fill" data-level="${level}" style="width:${pct ?? 0}%"></div></div>
-      <span class="value">${formatPct(pct)}</span>
-    </div>
-  `;
-}
-function updateMachineCard(card, machine, state) {
-  card.dataset.status = state.status;
-  const errorHolder = card.querySelector('.card-error') ?? (() => {
-    const el = document.createElement('div');
-    el.className = 'card-error';
-    el.style.cssText = 'color:var(--red);font-family:"JetBrains Mono",monospace;font-size:0.7rem;margin-top:0.4rem;';
-    card.appendChild(el);
-    return el;
-  })();
-  errorHolder.textContent = state.status === 'down' && state.error ? state.error : '';
-  const host = state.host;
-  const cpuPct = host?.cpuPct ?? null;
-  const memPct = host ? pctSafe(host.memUsed, host.memTotal) : null;
-  const dskPct = host ? pctSafe(host.diskUsed, host.diskTotal) : null;
-  setStat(card, 'cpu', cpuPct, host ? formatPct(cpuPct) : '—');
-  setStat(card, 'mem', memPct, host ? `${formatBytes(host.memUsed)} / ${formatBytes(host.memTotal)}` : '—');
-  setStat(card, 'dsk', dskPct, host ? `${formatBytes(host.diskUsed)} / ${formatBytes(host.diskTotal)}` : '—');
-  card.querySelector('.rx').textContent = `↓ ${formatRate(host?.netRx)}`;
-  card.querySelector('.tx').textContent = `↑ ${formatRate(host?.netTx)}`;
-  card.querySelector('.uptime-row').textContent = `up ${formatUptime(host?.uptime)}`;
+tickClock();
+setInterval(tickClock, 30_000);
 
-  updateGuestList(card, state, machine);
-}
+let lastMonStatus = 'down';
+let lastLightsAvail = null;
 
-function updateGuestList(card, state, machine) {
-  const list = card.querySelector('.guest-list');
-  const offlineList = card.querySelector('.offline-list');
-  const offlineDetails = card.querySelector('details.offline-guests');
-  const details = card.querySelector('details.guests');
-  if (state.guests && state.guests.length > 0) {
-    const running = state.guests.filter((g) => g.status === 'running').sort((a, b) => a.name.localeCompare(b.name));
-    const offline = state.guests.filter((g) => g.status !== 'running').sort((a, b) => a.name.localeCompare(b.name));
-    details.hidden = false;
-    details.querySelector('summary').textContent = `guests [${state.guests.length}]`;
-    list.innerHTML = '';
-    for (const g of running) list.appendChild(buildGuestRow(g, machine.name));
-    offlineList.innerHTML = '';
-    if (offline.length > 0) {
-      offlineDetails.hidden = false;
-      offlineDetails.querySelector('summary').textContent = `offline [${offline.length}]`;
-      for (const g of offline) offlineList.appendChild(buildGuestRow(g, machine.name));
-    } else {
-      offlineDetails.hidden = true;
-    }
-  } else if (machine.type === 'proxmox') {
-    details.hidden = false;
-    details.querySelector('summary').textContent = 'guests [0]';
-    list.innerHTML = '';
-    offlineDetails.hidden = true;
-    offlineList.innerHTML = '';
-  } else {
-    details.hidden = true;
+function setGlobalStatus() {
+  const chip = document.getElementById('globalStatus');
+  const label = document.getElementById('globalStatusLabel');
+  if (lastMonStatus === 'down') {
+    chip.dataset.status = 'down';
+    label.textContent = 'attention needed';
+    return;
   }
+  if (lastMonStatus === 'degraded') {
+    chip.dataset.status = 'degraded';
+    label.textContent = 'degraded';
+    return;
+  }
+  if (lastMonStatus === 'up') {
+    chip.dataset.status = 'up';
+    label.textContent = 'all systems normal';
+    return;
+  }
+  chip.dataset.status = 'down';
+  label.textContent = 'booting';
 }
 
-function buildGuestRow(g, machineName) {
-  const hasLink = !!g.url;
-  const row = document.createElement(hasLink ? 'a' : 'div');
-  row.className = 'guest-row';
-  row.dataset.status = g.status;
-  row.dataset.guest = g.name;
-  if (hasLink) {
-    row.href = g.url;
-    row.target = '_blank';
-    row.rel = 'noopener';
-  }
-  const memPct = pctSafe(g.memUsed, g.memTotal);
-  const cpuLevel = levelFor(g.cpuPct);
-  const memLevel = levelFor(memPct);
-  const cpuVal = g.cpuPct == null ? '—' : `${g.cpuPct.toFixed(0)}%`;
-  const memVal = memPct == null ? '—' : `${memPct.toFixed(0)}%`;
-  const cpuWidth = g.cpuPct == null ? 0 : Math.min(100, g.cpuPct);
-  const memWidth = memPct == null ? 0 : Math.min(100, memPct);
-  const net = g.status === 'running'
-    ? `<div class="guest-net"><span>↓ ${formatRate(g.netRx)}</span><span>↑ ${formatRate(g.netTx)}</span></div>`
-    : '';
-  const uptime = g.status === 'running' ? formatUptime(g.uptime) : 'stopped';
-  const linkArrow = hasLink ? `<span class="guest-link-arrow">↗</span>` : '';
-  row.innerHTML = `
-    <div class="guest-row-head">
-      <span class="guest-dot"></span>
-      <div class="guest-row-icon"></div>
-      <span class="guest-name">${escapeHtml(g.name)}</span>
-      <span class="guest-type">${g.type}</span>
-      <span class="guest-vmid">${g.vmid}</span>
-      <span class="guest-uptime">${uptime}</span>
-      ${linkArrow}
-      <button class="chart-btn" type="button" title="History graph"></button>
-    </div>
-    <div class="guest-stats">
-      <div class="mini-stat">
-        <span class="mini-label">CPU</span>
-        <div class="mini-bar"><div class="mini-fill" data-level="${cpuLevel}" style="width:${cpuWidth}%"></div></div>
-        <span class="mini-value">${cpuVal}</span>
-      </div>
-      <div class="mini-stat">
-        <span class="mini-label">MEM</span>
-        <div class="mini-bar"><div class="mini-fill" data-level="${memLevel}" style="width:${memWidth}%"></div></div>
-        <span class="mini-value">${memVal}</span>
-      </div>
-    </div>
-    ${net}
-  `;
-  const iconEl = row.querySelector('.guest-row-icon');
-  if (g.icon) {
-    const iconVal = g.icon;
-    if (iconVal.endsWith('.svg') || iconVal.includes('/')) {
-      const img = document.createElement('img');
-      img.src = `icons/${iconVal}`;
-      img.alt = g.name;
-      img.onerror = () => { iconEl.textContent = iconFallback(g.name); };
-      iconEl.appendChild(img);
-    } else {
-      iconEl.textContent = iconVal;
-    }
-  } else {
-    iconEl.remove();
-  }
-  if (planConfig && planConfig.machine === machineName && planConfig.guest === g.name) {
-    const planEl = document.createElement('div');
-    planEl.className = 'plan-analytics-link';
-    planEl.textContent = 'minecraft analytics \u2192';
-    row.appendChild(planEl);
-  }
-  return row;
-}
-function setStat(card, metric, pct, valueText) {
-  const row = card.querySelector(`.stat-row[data-metric="${metric}"]`);
-  const fill = row.querySelector('.bar-fill');
-  fill.style.width = pct == null ? '0%' : `${Math.min(100, pct)}%`;
-  fill.dataset.level = levelFor(pct);
-  row.querySelector('.value').textContent = valueText;
-}
-
-async function fetchStats() {
+async function refreshMonitoring() {
+  const tile = document.getElementById('monitoringTile');
+  const machinesEl = document.getElementById('monMachines');
+  const guestsEl = document.getElementById('monGuests');
+  const footEl = document.getElementById('monFoot');
   try {
     const res = await fetch('/api/stats');
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
-    lastStatsOk = true;
-    document.getElementById('errorBanner').classList.remove('visible');
-    renderStats(data);
-  } catch (err) {
-    lastStatsOk = false;
-    document.getElementById('errorBanner').classList.add('visible');
-    console.warn('[stats] fetch failed:', err.message);
-  }
-}
-
-function renderStats(data) {
-  const chip = document.getElementById('globalStatus');
-  chip.dataset.status = data.globalStatus;
-  document.getElementById('globalStatusLabel').textContent = data.globalStatus;
-  document.getElementById('lastPoll').textContent = `last poll ${new Date(data.lastPoll).toLocaleTimeString()}`;
-
-  const grid = document.getElementById('machinesGrid');
-  for (const [name, machineState] of Object.entries(data.machines)) {
-    let card = grid.querySelector(`.card[data-machine="${name}"]`);
-    if (!card) {
-      card = renderMachineCard({ name, type: machineState.type }, machineState);
-      grid.appendChild(card);
+    const entries = Object.entries(data.machines || {});
+    const total = entries.length;
+    const upCount = entries.filter(([, m]) => m.status === 'up').length;
+    const downCount = total - upCount;
+    let guestRunning = 0, guestTotal = 0;
+    for (const [, m] of entries) {
+      if (Array.isArray(m.guests)) {
+        guestTotal += m.guests.length;
+        guestRunning += m.guests.filter((g) => g.status === 'running').length;
+      }
     }
-    updateMachineCard(card, { name, type: machineState.type }, machineState);
-  }
-}
-
-// ─── Chart modal ─────────────────────────────────────────
-let uplotLoadPromise = null;
-let chartInstance = null;
-let chartEntity = null;
-let chartRange = '24h';
-
-function loadUplot() {
-  if (typeof uPlot !== 'undefined') return Promise.resolve();
-  if (uplotLoadPromise) return uplotLoadPromise;
-  uplotLoadPromise = new Promise((resolve, reject) => {
-    const script = document.createElement('script');
-    script.src = 'https://cdn.jsdelivr.net/npm/uplot@1.6.31/dist/uPlot.iife.min.js';
-    script.onload = () => resolve();
-    script.onerror = () => reject(new Error('failed to load uPlot from CDN'));
-    document.head.appendChild(script);
-  });
-  return uplotLoadPromise;
-}
-
-function setChartStatus(msg) {
-  const canvas = document.getElementById('chartCanvas');
-  canvas.innerHTML = `<div class="chart-status">${escapeHtml(msg)}</div>`;
-}
-
-async function openChart(entity) {
-  chartEntity = entity;
-  const modal = document.getElementById('chartModal');
-  const title = document.getElementById('chartModalTitle');
-  title.textContent = entity.guest ? `${entity.machine} · ${entity.guest}` : entity.machine;
-  modal.hidden = false;
-  requestAnimationFrame(() => modal.classList.add('open'));
-  setChartStatus('loading uPlot…');
-  try {
-    await loadUplot();
-    await fetchAndRenderChart();
+    machinesEl.innerHTML = downCount > 0
+      ? `<strong>${upCount}</strong> of <strong>${total}</strong> machines up <span class="alert">· ${downCount} down</span>`
+      : `<strong>${total}</strong> machines · all up`;
+    guestsEl.innerHTML = guestTotal > 0
+      ? `<strong>${guestRunning}</strong> of <strong>${guestTotal}</strong> guests running`
+      : `<span class="dim">no guests reported</span>`;
+    tile.dataset.status = data.globalStatus || 'down';
+    lastMonStatus = data.globalStatus || 'down';
+    footEl.textContent = `last poll ${new Date(data.lastPoll).toLocaleTimeString()}`;
   } catch (err) {
-    setChartStatus(`error: ${err.message}`);
+    machinesEl.innerHTML = `<span class="dim">unreachable</span>`;
+    guestsEl.innerHTML = `<span class="dim">—</span>`;
+    tile.dataset.status = 'down';
+    lastMonStatus = 'down';
+    footEl.textContent = `error: ${err.message}`;
   }
+  setGlobalStatus();
 }
 
-function closeChart() {
-  const modal = document.getElementById('chartModal');
-  modal.classList.add('closing');
-  modal.classList.remove('open');
-  setTimeout(() => {
-    modal.hidden = true;
-    modal.classList.remove('closing');
-    if (chartInstance) {
-      chartInstance.destroy();
-      chartInstance = null;
-    }
-    chartEntity = null;
-  }, 160);
-}
-
-async function fetchAndRenderChart() {
-  if (!chartEntity) return;
-  setChartStatus('loading…');
-  const params = new URLSearchParams({
-    machine: chartEntity.machine,
-    range: chartRange,
-    metrics: 'cpu,memUsed,memTotal,netRx,netTx',
-  });
-  if (chartEntity.guest) params.set('guest', chartEntity.guest);
+async function probeLights() {
+  const tile = document.getElementById('lightsTile');
   try {
-    const res = await fetch(`/api/history?${params}`);
+    const res = await fetch('/api/lights');
+    if (res.status === 404) {
+      lastLightsAvail = false;
+      tile.hidden = true;
+      return;
+    }
+    lastLightsAvail = true;
+    tile.hidden = false;
+    if (res.status === 503) {
+      tile.classList.add('unavailable');
+      tile.dataset.status = 'down';
+      document.getElementById('lightsOn').innerHTML = `<span class="dim">home assistant offline</span>`;
+      document.getElementById('lightsRooms').innerHTML = `<span class="dim">—</span>`;
+      document.getElementById('lightsFoot').textContent = 'reconnecting…';
+      return;
+    }
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const data = await res.json();
-    renderChart(data);
+    tile.classList.remove('unavailable');
+    const snap = await res.json();
+    renderLights(snap);
   } catch (err) {
-    setChartStatus(`error: ${err.message}`);
-  }
-}
-
-function renderChart(data) {
-  const canvas = document.getElementById('chartCanvas');
-  canvas.innerHTML = '';
-  if (chartInstance) {
-    chartInstance.destroy();
-    chartInstance = null;
-  }
-  const cpuSeries = data.metrics.cpu || [];
-  if (cpuSeries.length === 0) {
-    setChartStatus('no data in this range yet — keep the dashboard running to accumulate history');
-    return;
-  }
-  const timestamps = cpuSeries.map(([ts]) => Math.floor(ts / 1000));
-  const cpu = cpuSeries.map(([_, v]) => v);
-  const memUsed = (data.metrics.memUsed || []).map(([_, v]) => v);
-  const memTotal = (data.metrics.memTotal || []).map(([_, v]) => v);
-  const memPct = memUsed.map((used, i) => {
-    const total = memTotal[i];
-    return total && total > 0 ? (used / total) * 100 : null;
-  });
-  const netRxRaw = (data.metrics.netRx || []).map(([_, v]) => v);
-  const netTxRaw = (data.metrics.netTx || []).map(([_, v]) => v);
-  const netRxMB = netRxRaw.map((v) => v != null ? v / 1e6 : null);
-  const netTxMB = netTxRaw.map((v) => v != null ? v / 1e6 : null);
-
-  const opts = {
-    width: canvas.clientWidth || 800,
-    height: canvas.clientHeight || 360,
-    padding: [8, 16, 8, 8],
-    cursor: { drag: { x: true, y: false, setScale: true } },
-    scales: {
-      x: { time: true },
-      y:  { range: [0, 100], auto: false },
-      mb: { auto: true },
-    },
-    axes: [
-      { stroke: '#6272a4', grid: { stroke: '#44475a', width: 1 }, ticks: { stroke: '#44475a' } },
-      { stroke: '#6272a4', grid: { stroke: '#44475a', width: 1 }, ticks: { stroke: '#44475a' }, values: (u, vals) => vals.map((v) => v + '%') },
-      { side: 1, scale: 'mb', stroke: '#8be9fd', grid: { show: false }, values: (u, vals) => vals.map((v) => v.toFixed(1) + ' MB/s') },
-    ],
-    series: [
-      {},
-      { label: 'cpu',     stroke: '#bd93f9', width: 1.5, scale: 'y'  },
-      { label: 'mem',     stroke: '#ff79c6', width: 1.5, scale: 'y'  },
-      { label: 'rx MB/s', stroke: '#8be9fd', width: 1,   scale: 'mb' },
-      { label: 'tx MB/s', stroke: '#50fa7b', width: 1,   scale: 'mb' },
-    ],
-  };
-  var resetBtn = document.getElementById('chartResetBtn');
-  resetBtn.classList.remove('visible');
-
-  opts.hooks = {
-    setScale: [function (u, key) {
-      if (key !== 'x') return;
-      var xData = u.data[0];
-      var fullMin = xData[0];
-      var fullMax = xData[xData.length - 1];
-      var curMin = u.scales.x.min;
-      var curMax = u.scales.x.max;
-      var isZoomed = Math.abs(curMin - fullMin) > 1 || Math.abs(curMax - fullMax) > 1;
-      resetBtn.classList.toggle('visible', isZoomed);
-    }],
-  };
-
-  chartInstance = new uPlot(opts, [timestamps, cpu, memPct, netRxMB, netTxMB], canvas);
-}
-
-document.getElementById('chartModalClose').addEventListener('click', closeChart);
-document.getElementById('chartModal').addEventListener('click', (e) => {
-  if (e.target.id === 'chartModal') closeChart();
-});
-document.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape' && !document.getElementById('chartModal').hidden) {
-    closeChart();
-  }
-});
-document.getElementById('chartResetBtn').addEventListener('click', function () {
-  if (!chartInstance) return;
-  var xData = chartInstance.data[0];
-  chartInstance.setScale('x', { min: xData[0], max: xData[xData.length - 1] });
-});
-document.getElementById('chartCanvas').addEventListener('dblclick', function () {
-  if (!chartInstance) return;
-  var xData = chartInstance.data[0];
-  chartInstance.setScale('x', { min: xData[0], max: xData[xData.length - 1] });
-});
-document.getElementById('chartRangePicker').addEventListener('click', (e) => {
-  const btn = e.target.closest('.chart-range-btn');
-  if (!btn) return;
-  const range = btn.dataset.range;
-  if (range === chartRange) return;
-  chartRange = range;
-  document.querySelectorAll('.chart-range-btn').forEach((b) => {
-    b.dataset.active = b.dataset.range === range ? 'true' : 'false';
-  });
-  fetchAndRenderChart();
-});
-document.getElementById('machinesGrid').addEventListener('click', (e) => {
-  if (e.target.closest('.plan-analytics-link')) {
-    e.preventDefault();
-    e.stopPropagation();
-    window.location.href = '/plan';
-    return;
-  }
-  const btn = e.target.closest('.chart-btn');
-  if (!btn) return;
-  e.preventDefault();
-  e.stopPropagation();
-  const card = btn.closest('.card');
-  const row = btn.closest('.guest-row');
-  if (!card) return;
-  const machine = card.dataset.machine;
-  const guest = row?.dataset.guest || null;
-  openChart({ machine, guest });
-});
-
-async function refreshAlerts() {
-  try {
-    const [activeRes, historyRes] = await Promise.all([
-      fetch('/api/alerts/active'),
-      fetch('/api/alerts?limit=50'),
-    ]);
-    if (!activeRes.ok || !historyRes.ok) return;
-    const { active } = await activeRes.json();
-    const { events } = await historyRes.json();
-    renderAlerts(active, events);
-  } catch (err) {
-    // silent — alerts are optional
-  }
-}
-
-function renderAlerts(active, events) {
-  const section = document.getElementById('alerts-section');
-  const activeList = document.getElementById('alerts-active');
-  const historyList = document.getElementById('alerts-history');
-  section.hidden = false;
-
-  activeList.innerHTML = '';
-  if (!active || active.length === 0) {
-    const li = document.createElement('li');
-    li.className = 'alerts-empty';
-    li.textContent = 'All clear.';
-    activeList.appendChild(li);
-  } else {
-    for (const a of active) {
-      const li = document.createElement('li');
-      li.className = 'alert-row firing';
-      const target = a.guest ? `${escapeHtml(a.machine)}/${escapeHtml(a.guest)}` : escapeHtml(a.machine);
-      const pct = a.value == null ? '' : `${Math.round(a.value)}%`;
-      const thr = a.threshold == null ? '' : `≥ ${a.threshold}%`;
-      const dur = a.since ? `firing for ${formatDuration(Date.now() - a.since)}` : '';
-      li.innerHTML = `<span>●</span><span class="target">${target} ${escapeHtml(a.metric)} ${pct} ${thr}</span><span class="meta">${dur}</span>`;
-      activeList.appendChild(li);
+    if (lastLightsAvail !== false) {
+      tile.classList.add('unavailable');
+      tile.dataset.status = 'down';
+      document.getElementById('lightsFoot').textContent = `error: ${err.message}`;
     }
-  }
-
-  historyList.innerHTML = '';
-  for (const e of events) {
-    const li = document.createElement('li');
-    li.className = `alert-row ${e.kind === 'firing' ? 'firing' : 'resolved'}`;
-    const target = e.guest ? `${escapeHtml(e.machine)}/${escapeHtml(e.guest)}` : escapeHtml(e.machine);
-    const pct = e.value == null ? '' : `${Math.round(e.value)}%`;
-    const ts = new Date(e.ts).toLocaleString();
-    const mark = e.kind === 'firing' ? '▲' : '▼';
-    li.innerHTML = `<span>${mark}</span><span class="target">${target} ${escapeHtml(e.metric)} ${pct}</span><span class="meta">${ts}</span>`;
-    historyList.appendChild(li);
+  } finally {
+    setGlobalStatus();
   }
 }
 
-function formatDuration(ms) {
-  const s = Math.floor(ms / 1000);
-  if (s < 60) return `${s}s`;
-  const m = Math.floor(s / 60);
-  if (m < 60) return `${m}m`;
-  const h = Math.floor(m / 60);
-  return `${h}h ${m % 60}m`;
+function renderLights(snap) {
+  const tile = document.getElementById('lightsTile');
+  tile.classList.remove('unavailable');
+  const onEl = document.getElementById('lightsOn');
+  const roomsEl = document.getElementById('lightsRooms');
+  const footEl = document.getElementById('lightsFoot');
+
+  const rooms = snap.rooms || [];
+  const unassignedLights = (snap.unassigned && snap.unassigned.lights) || [];
+  const allLights = [...rooms.flatMap((r) => r.lights || []), ...unassignedLights];
+  const total = allLights.length;
+  const onCount = allLights.filter((l) => l.on).length;
+  const activeRooms = rooms.filter((r) => (r.lights || []).some((l) => l.on));
+
+  if (total === 0) {
+    onEl.innerHTML = `<span class="dim">no lights detected</span>`;
+    roomsEl.innerHTML = `<span class="dim">—</span>`;
+    tile.dataset.status = 'idle';
+    footEl.textContent = 'idle';
+    return;
+  }
+  onEl.innerHTML = `<strong>${onCount}</strong> of <strong>${total}</strong> lights on`;
+  if (rooms.length > 0) {
+    if (activeRooms.length === 0) {
+      roomsEl.innerHTML = `<strong>${rooms.length}</strong> rooms · <span class="dim">all dark</span>`;
+    } else if (activeRooms.length <= 2) {
+      const names = activeRooms.map((r) => escapeHtml(r.name.toLowerCase())).join(', ');
+      roomsEl.innerHTML = `active: <strong>${names}</strong>`;
+    } else {
+      roomsEl.innerHTML = `<strong>${activeRooms.length}</strong> of <strong>${rooms.length}</strong> rooms active`;
+    }
+  } else {
+    roomsEl.innerHTML = `<span class="dim">no rooms grouped</span>`;
+  }
+  tile.dataset.status = onCount > 0 ? 'active' : 'idle';
+  footEl.textContent = onCount > 0 ? `${onCount} active` : 'idle';
 }
 
-document.getElementById('refreshBtn').addEventListener('click', fetchStats);
-fetchStats();
-refreshAlerts();
-setInterval(() => { fetchStats(); refreshAlerts(); }, POLL_INTERVAL_MS);
-fetch('/api/plan-config').then(r => r.ok ? r.json() : null).then(c => { planConfig = c; }).catch(() => {});
-fetch('/api/lights', { method: 'HEAD' }).then((r) => {
-  if (r.status !== 404) document.getElementById('lightsLink').hidden = false;
-}).catch(() => {});
+refreshMonitoring();
+probeLights();
+setInterval(() => { refreshMonitoring(); probeLights(); }, POLL_INTERVAL_MS);
 </script>
 </body>
 </html>

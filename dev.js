@@ -3,6 +3,7 @@ const path = require('node:path');
 const fs = require('node:fs');
 const { Poller } = require('./lib/poller.js');
 const { Storage, METRIC_COLUMNS } = require('./lib/storage.js');
+const { SseBroker } = require('./lib/sse_broker.js');
 
 const RANGE_PRESETS = {
   '1h':  60 * 60 * 1000,
@@ -211,6 +212,174 @@ app.use('/api/plan', (req, res) => {
     ]});
   }
   res.status(404).json({ error: 'unknown Plan endpoint' });
+});
+
+// ── Page routes (clean URLs) ───────────────────────────
+app.get('/monitoring', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'monitoring.html')));
+app.get('/lights', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'lights.html')));
+
+// ── Alerts mock ────────────────────────────────────────
+const mockActiveAlerts = [];
+const mockAlertHistory = [
+  { ts: Date.now() - 6 * 3600_000, kind: 'firing',   machine: 'proxmox-dmz', guest: 'val-srv',   metric: 'cpuPct',  value: 92, threshold: 85 },
+  { ts: Date.now() - 5.5 * 3600_000, kind: 'resolved', machine: 'proxmox-dmz', guest: 'val-srv', metric: 'cpuPct',  value: 60, threshold: 85 },
+  { ts: Date.now() - 26 * 3600_000, kind: 'firing',   machine: 'nas',         guest: null,        metric: 'diskPct', value: 88, threshold: 85 },
+  { ts: Date.now() - 24 * 3600_000, kind: 'resolved', machine: 'nas',         guest: null,        metric: 'diskPct', value: 70, threshold: 85 },
+];
+app.get('/api/alerts/active', (_req, res) => res.json({ active: mockActiveAlerts }));
+app.get('/api/alerts', (req, res) => {
+  const limit = Math.min(500, Math.max(1, parseInt(req.query.limit ?? '100', 10) || 100));
+  res.json({ events: mockAlertHistory.slice(0, limit) });
+});
+
+// ── Lights mock (Home Assistant emulation) ─────────────
+const lightsState = {
+  rooms: [
+    { id: 'living-room', name: 'Living Room', lights: [
+      { entity_id: 'light.living_room_main',  name: 'Living Room Main',  on: true,  reachable: true, brightness_pct: 80, rgb: [255, 184, 108], supports_color: true },
+      { entity_id: 'light.living_room_lamp',  name: 'Living Room Lamp',  on: true,  reachable: true, brightness_pct: 45, rgb: [189, 147, 249], supports_color: true },
+      { entity_id: 'light.tv_backlight',      name: 'TV Backlight',      on: false, reachable: true, brightness_pct: 0,  rgb: [80, 250, 123],  supports_color: true },
+    ], scenes: [
+      { entity_id: 'scene.living_room_movie',  name: 'Movie Night' },
+      { entity_id: 'scene.living_room_bright', name: 'Bright' },
+    ]},
+    { id: 'bedroom', name: 'Bedroom', lights: [
+      { entity_id: 'light.bedroom_ceiling',  name: 'Bedroom Ceiling',  on: false, reachable: true, brightness_pct: 0,  rgb: [255, 121, 198], supports_color: true },
+      { entity_id: 'light.bedside_left',     name: 'Bedside Left',     on: false, reachable: true, brightness_pct: 0,  rgb: null,            supports_color: false },
+      { entity_id: 'light.bedside_right',    name: 'Bedside Right',    on: false, reachable: true, brightness_pct: 0,  rgb: null,            supports_color: false },
+    ], scenes: [
+      { entity_id: 'scene.bedroom_wakeup',   name: 'Wake Up' },
+      { entity_id: 'scene.bedroom_sleep',    name: 'Sleep' },
+    ]},
+    { id: 'kitchen', name: 'Kitchen', lights: [
+      { entity_id: 'light.kitchen_main',    name: 'Kitchen Main',    on: true,  reachable: true, brightness_pct: 100, rgb: null,            supports_color: false },
+      { entity_id: 'light.kitchen_under',   name: 'Under Cabinet',   on: false, reachable: true, brightness_pct: 0,   rgb: [139, 233, 253], supports_color: true },
+    ], scenes: [
+      { entity_id: 'scene.kitchen_cooking', name: 'Cooking' },
+    ]},
+    { id: 'office', name: 'Office', lights: [
+      { entity_id: 'light.office_desk',     name: 'Desk Lamp',       on: true,  reachable: true, brightness_pct: 60, rgb: [139, 233, 253], supports_color: true },
+      { entity_id: 'light.office_overhead', name: 'Office Overhead', on: false, reachable: false, brightness_pct: 0, rgb: null,            supports_color: false },
+    ], scenes: [
+      { entity_id: 'scene.office_focus',    name: 'Focus' },
+    ]},
+  ],
+  unassigned: {
+    lights: [
+      { entity_id: 'light.hallway',   name: 'Hallway',   on: false, reachable: true, brightness_pct: 0, rgb: null, supports_color: false },
+    ],
+    scenes: [],
+  },
+};
+
+const scenePresets = {
+  'scene.living_room_movie':  [
+    { entity_id: 'light.living_room_main', on: true, brightness_pct: 15, rgb: [255, 85, 85] },
+    { entity_id: 'light.living_room_lamp', on: true, brightness_pct: 25, rgb: [189, 147, 249] },
+    { entity_id: 'light.tv_backlight',     on: true, brightness_pct: 50, rgb: [80, 250, 123] },
+  ],
+  'scene.living_room_bright': [
+    { entity_id: 'light.living_room_main', on: true, brightness_pct: 100, rgb: [255, 255, 255] },
+    { entity_id: 'light.living_room_lamp', on: true, brightness_pct: 100, rgb: [255, 248, 220] },
+    { entity_id: 'light.tv_backlight',     on: false },
+  ],
+  'scene.bedroom_wakeup': [
+    { entity_id: 'light.bedroom_ceiling', on: true, brightness_pct: 70, rgb: [255, 184, 108] },
+    { entity_id: 'light.bedside_left',    on: true, brightness_pct: 50 },
+    { entity_id: 'light.bedside_right',   on: true, brightness_pct: 50 },
+  ],
+  'scene.bedroom_sleep': [
+    { entity_id: 'light.bedroom_ceiling', on: false },
+    { entity_id: 'light.bedside_left',    on: true, brightness_pct: 5 },
+    { entity_id: 'light.bedside_right',   on: false },
+  ],
+  'scene.kitchen_cooking': [
+    { entity_id: 'light.kitchen_main',  on: true, brightness_pct: 100 },
+    { entity_id: 'light.kitchen_under', on: true, brightness_pct: 80, rgb: [255, 255, 255] },
+  ],
+  'scene.office_focus': [
+    { entity_id: 'light.office_desk',     on: true, brightness_pct: 100, rgb: [255, 255, 255] },
+    { entity_id: 'light.office_overhead', on: true, brightness_pct: 80 },
+  ],
+};
+
+const lightsBroker = new SseBroker();
+
+function findLight(entityId) {
+  for (const r of lightsState.rooms) {
+    const l = r.lights.find((x) => x.entity_id === entityId);
+    if (l) return l;
+  }
+  return lightsState.unassigned.lights.find((x) => x.entity_id === entityId) || null;
+}
+
+function applyLightPatch(entityId, patch) {
+  const l = findLight(entityId);
+  if (!l) return null;
+  if (patch.on === false) {
+    l.on = false;
+    l.brightness_pct = 0;
+  } else {
+    if (patch.on === true) l.on = true;
+    if (typeof patch.brightness_pct === 'number') {
+      l.brightness_pct = patch.brightness_pct;
+      l.on = patch.brightness_pct > 0;
+    }
+    if (Array.isArray(patch.rgb_color) && patch.rgb_color.length === 3 && l.supports_color) {
+      l.rgb = patch.rgb_color.slice();
+      l.on = true;
+      if (l.brightness_pct === 0) l.brightness_pct = 100;
+    }
+  }
+  return l;
+}
+
+function broadcastLightState(entityId) {
+  const l = findLight(entityId);
+  if (!l) return;
+  lightsBroker.broadcast('state', {
+    kind: 'light',
+    entity_id: entityId,
+    state: {
+      on: l.on,
+      reachable: l.reachable,
+      brightness_pct: l.brightness_pct,
+      rgb: l.rgb,
+      supports_color: l.supports_color,
+    },
+  });
+}
+
+app.get('/api/lights', (_req, res) => res.json(lightsState));
+
+app.post('/api/lights/:entity_id', express.json({ limit: '64kb' }), (req, res) => {
+  const entityId = req.params.entity_id;
+  if (!entityId.startsWith('light.')) return res.status(400).json({ error: 'entity_id must be a light.* entity' });
+  const allowed = new Set(['on', 'brightness_pct', 'rgb_color']);
+  for (const k of Object.keys(req.body || {})) {
+    if (!allowed.has(k)) return res.status(400).json({ error: `unknown field: ${k}` });
+  }
+  const updated = applyLightPatch(entityId, req.body || {});
+  if (!updated) return res.status(404).json({ error: 'unknown entity' });
+  broadcastLightState(entityId);
+  res.json({ ok: true });
+});
+
+app.post('/api/scenes/:entity_id/activate', (req, res) => {
+  const entityId = req.params.entity_id;
+  if (!entityId.startsWith('scene.')) return res.status(400).json({ error: 'entity_id must be a scene.* entity' });
+  const preset = scenePresets[entityId];
+  if (!preset) return res.status(404).json({ error: 'unknown scene' });
+  for (const p of preset) {
+    applyLightPatch(p.entity_id, p);
+    broadcastLightState(p.entity_id);
+  }
+  res.json({ ok: true });
+});
+
+app.get('/api/lights/stream', (_req, res) => {
+  lightsBroker.addClient(res);
+  res.write(`event: snapshot\ndata: ${JSON.stringify(lightsState)}\n\n`);
 });
 
 app.use(express.static(path.join(__dirname, 'public')));
