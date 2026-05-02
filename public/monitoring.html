@@ -520,6 +520,7 @@ footer .prompt { color: var(--green); margin-right: 0.5ch; }
 }
 </style>
 <script src="/theme.js" defer></script>
+<script src="/weather.js" defer></script>
 </head>
 <body>
 <div class="page-chrome">
@@ -529,7 +530,32 @@ footer .prompt { color: var(--green); margin-right: 0.5ch; }
     <span class="brand-mark">burkii</span><span class="brand-sub">/monitoring</span>
   </span>
   <div class="header-chrome">
-    <span data-theme-mount></span>
+    <button class="weather-chip" id="weatherChip" type="button" aria-haspopup="dialog" aria-expanded="false" aria-controls="weatherPanel" hidden>
+      <span class="w-icon" id="weatherChipIcon"></span>
+      <span class="w-temp" id="weatherChipTemp">--°</span>
+      <span class="w-cond" id="weatherChipCond">…</span>
+    </button>
+    <div class="clock"><span class="prompt">$</span><span data-clock-h>--</span><span class="colon">:</span><span data-clock-m>--</span></div>
+    <div class="weather-panel" id="weatherPanel" role="dialog" aria-label="weather details" hidden>
+      <div class="w-now">
+        <div class="w-now-icon" id="weatherPanelIcon"></div>
+        <div class="w-now-meta">
+          <div><span class="w-now-temp" id="weatherPanelTemp">--°</span></div>
+          <div class="w-now-cond" id="weatherPanelCond">—</div>
+          <div class="w-now-label" id="weatherPanelLabel">—</div>
+          <div class="w-now-feels">feels like <strong id="weatherPanelFeels">--°</strong></div>
+        </div>
+      </div>
+      <div class="w-stats">
+        <div class="w-stat"><span>humidity</span><strong id="weatherPanelHumidity">--%</strong></div>
+        <div class="w-stat"><span>wind</span><strong id="weatherPanelWind">-- km/h</strong></div>
+        <div class="w-stat"><span>sunrise</span><strong id="weatherPanelSunrise">--:--</strong></div>
+        <div class="w-stat"><span>sunset</span><strong id="weatherPanelSunset">--:--</strong></div>
+      </div>
+      <div class="w-forecast-title">7-day forecast</div>
+      <div class="w-forecast" id="weatherForecast"></div>
+      <div class="w-stale" id="weatherStale" hidden>cached — last fetch failed</div>
+    </div>
   </div>
 </header>
 <div class="page-subbar">
