@@ -45,10 +45,10 @@ plaintext admin panel.
 4. **Scope the HA long-lived token** to a dedicated HA user with permissions
    limited to the entities you actually want exposed (HA per-user entity
    filtering or a bespoke `homeassistant` user with restricted areas).
-5. **Keep `config.js` out of git**. It's tracked as a placeholder template.
-   If you fork this repo, either commit your filled-in config to a private
-   repo, or move it to `config.local.js` (already in `.gitignore`) and
-   `require('./config.local.js')` from `server.js`.
+5. **`config.js` is gitignored**; the tracked template is `config.example.js`.
+   On install, `cp config.example.js config.js` and fill in your values. Pulls
+   never overwrite your secrets. If you want a private fork that commits real
+   values, remove `config.js` from `.gitignore` in your fork.
 6. **Don't expose ntfy URLs publicly**. ntfy topics are unauthenticated by
    default — knowing the URL is enough to read or post alerts. Use ntfy ACLs
    or a self-hosted ntfy with auth if the topic is sensitive.
