@@ -43,11 +43,18 @@ module.exports = {
     // { machine: "proxmox-internal", guest: "dashboard",  url: "http://REPLACE_ME:3000",      icon: "dashboard.svg"    },
   ],
 
-  // Home Assistant / Hue lights integration. Remove this block (or leave it out) to disable.
+  // Home Assistant integration — powers the /lights and /chat pages.
   // Token: HA Profile → Long-lived Access Tokens → Create Token. Paste below.
+  // /chat hits HA's /api/conversation/process which uses the same Assist pipeline
+  // (and conversation agent, e.g. Ollama) as your voice assistant.
+  // Optional: conversationAgentId pins a specific agent (e.g. an Ollama agent's
+  //   entity id like "conversation.llama3"). Omit to use HA's default.
+  // Optional: conversationLanguage defaults to "en".
   // homeAssistant: {
   //   url: "http://homeassistant.local:8123",
   //   token: "REPLACE_ME",
+  //   conversationAgentId: undefined,
+  //   conversationLanguage: "en",
   // },
 
   // Plan Player Analytics integration — adds a Minecraft analytics page.

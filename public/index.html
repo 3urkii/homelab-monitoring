@@ -136,6 +136,7 @@ main {
 .tile-grid > .tile:nth-child(1) { animation-delay: 60ms; }
 .tile-grid > .tile:nth-child(2) { animation-delay: 130ms; }
 .tile-grid > .tile:nth-child(3) { animation-delay: 200ms; }
+.tile-grid > .tile:nth-child(4) { animation-delay: 270ms; }
 @keyframes tileEntry {
   from { opacity: 0; transform: translateY(6px); }
   to   { opacity: 1; transform: translateY(0); }
@@ -148,6 +149,7 @@ main {
 }
 .tile[data-accent="lights"]::before { background: var(--pink); }
 .tile[data-accent="network"]::before { background: var(--cyan); }
+.tile[data-accent="chat"]::before    { background: var(--orange); }
 
 @media (hover: hover) and (pointer: fine) {
   .tile:hover {
@@ -162,13 +164,19 @@ main {
     border-color: var(--cyan);
     background: rgba(139,233,253,0.04);
   }
+  .tile[data-accent="chat"]:hover {
+    border-color: var(--orange);
+    background: rgba(255,184,108,0.04);
+  }
   .tile:hover::before { opacity: 1; }
   .tile:hover .tile-arrow { transform: translateX(3px); color: var(--purple); }
   .tile[data-accent="lights"]:hover .tile-arrow { color: var(--pink); }
   .tile[data-accent="network"]:hover .tile-arrow { color: var(--cyan); }
+  .tile[data-accent="chat"]:hover .tile-arrow { color: var(--orange); }
   .tile:hover .tile-title { color: var(--purple); }
   .tile[data-accent="lights"]:hover .tile-title { color: var(--pink); }
   .tile[data-accent="network"]:hover .tile-title { color: var(--cyan); }
+  .tile[data-accent="chat"]:hover .tile-title { color: var(--orange); }
 }
 
 .tile-head {
@@ -219,6 +227,7 @@ main {
 .tile-stat-line .value strong { color: var(--purple); font-weight: 700; }
 .tile[data-accent="lights"] .tile-stat-line .value strong { color: var(--pink); }
 .tile[data-accent="network"] .tile-stat-line .value strong { color: var(--cyan); }
+.tile[data-accent="chat"] .tile-stat-line .value strong { color: var(--orange); }
 .tile-stat-line .alert { color: var(--red); }
 
 .tile-foot {
@@ -314,6 +323,19 @@ footer .prompt { color: var(--green); margin-right: 0.5ch; }
         <div class="tile-foot"><span class="prompt">$</span><span id="lightsFoot">probing /api/lights…</span></div>
       </a>
 
+      <a class="tile" href="/chat" data-accent="chat" data-status="idle" id="chatTile" hidden>
+        <div class="tile-head">
+          <span class="tile-status-dot"></span>
+          <span class="tile-title">chat</span>
+          <span class="tile-arrow">→</span>
+        </div>
+        <div class="tile-body">
+          <div class="tile-stat-line"><span class="bullet">▸</span><span class="value" id="chatAgent"><span class="dim">probing assist agent…</span></span></div>
+          <div class="tile-stat-line"><span class="bullet">▸</span><span class="value">talk to <strong>home</strong></span></div>
+        </div>
+        <div class="tile-foot"><span class="prompt">$</span><span id="chatFoot">via home assistant assist</span></div>
+      </a>
+
     </div>
   </section>
 </main>
@@ -398,6 +420,28 @@ async function refreshMonitoring() {
   setGlobalStatus();
 }
 
+function setChatTile(haAvailable, haOnline) {
+  const tile = document.getElementById('chatTile');
+  const agentEl = document.getElementById('chatAgent');
+  const footEl = document.getElementById('chatFoot');
+  if (!haAvailable) {
+    tile.hidden = true;
+    return;
+  }
+  tile.hidden = false;
+  if (haOnline === false) {
+    tile.classList.add('unavailable');
+    tile.dataset.status = 'down';
+    agentEl.innerHTML = `<span class="dim">home assistant offline</span>`;
+    footEl.textContent = 'reconnecting…';
+    return;
+  }
+  tile.classList.remove('unavailable');
+  tile.dataset.status = 'active';
+  agentEl.innerHTML = `talk to <strong>home</strong> in plain english`;
+  footEl.textContent = 'via home assistant assist';
+}
+
 async function probeLights() {
   const tile = document.getElementById('lightsTile');
   try {
@@ -405,6 +449,7 @@ async function probeLights() {
     if (res.status === 404) {
       lastLightsAvail = false;
       tile.hidden = true;
+      setChatTile(false);
       return;
     }
     lastLightsAvail = true;
@@ -415,17 +460,20 @@ async function probeLights() {
       document.getElementById('lightsOn').innerHTML = `<span class="dim">home assistant offline</span>`;
       document.getElementById('lightsRooms').innerHTML = `<span class="dim">—</span>`;
       document.getElementById('lightsFoot').textContent = 'reconnecting…';
+      setChatTile(true, false);
       return;
     }
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     tile.classList.remove('unavailable');
     const snap = await res.json();
     renderLights(snap);
+    setChatTile(true, true);
   } catch (err) {
     if (lastLightsAvail !== false) {
       tile.classList.add('unavailable');
       tile.dataset.status = 'down';
       document.getElementById('lightsFoot').textContent = `error: ${err.message}`;
+      setChatTile(true, false);
     }
   } finally {
     setGlobalStatus();

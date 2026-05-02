@@ -217,6 +217,90 @@ app.use('/api/plan', (req, res) => {
 // ── Page routes (clean URLs) ───────────────────────────
 app.get('/monitoring', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'monitoring.html')));
 app.get('/lights', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'lights.html')));
+app.get('/chat', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'chat.html')));
+
+// ── Chat mock (Home Assistant /api/conversation/process emulation) ─
+const chatSessions = new Map();
+const CHAT_LATENCY_MS = 650;
+
+function chatReply(text, sessionId) {
+  const t = text.toLowerCase().trim();
+  const session = chatSessions.get(sessionId) || { turns: 0 };
+  session.turns += 1;
+  chatSessions.set(sessionId, session);
+
+  // Light control intents → action_done
+  const offMatch = t.match(/(?:turn (?:off|out)|switch off|kill|shut off)\s+(?:the\s+)?(.+?)(?:\s+lights?)?$/);
+  if (offMatch || /^lights?\s+off$/.test(t)) {
+    const target = offMatch && offMatch[1] && offMatch[1] !== 'all' ? offMatch[1] : 'all the lights';
+    for (const r of lightsState.rooms) {
+      const matchRoom = !offMatch || target === 'all the lights' || r.name.toLowerCase().includes(target);
+      if (!matchRoom) continue;
+      for (const l of r.lights) { if (l.on) { l.on = false; l.brightness_pct = 0; broadcastLightState(l.entity_id); } }
+    }
+    return { speech: `Turned off ${target}.`, response_type: 'action_done' };
+  }
+  const onMatch = t.match(/(?:turn on|switch on)\s+(?:the\s+)?(.+?)(?:\s+lights?)?$/);
+  if (onMatch || /^lights?\s+on$/.test(t)) {
+    const target = onMatch && onMatch[1] && onMatch[1] !== 'all' ? onMatch[1] : 'all the lights';
+    for (const r of lightsState.rooms) {
+      const matchRoom = !onMatch || target === 'all the lights' || r.name.toLowerCase().includes(target);
+      if (!matchRoom) continue;
+      for (const l of r.lights) { if (!l.on) { l.on = true; l.brightness_pct = l.brightness_pct || 80; broadcastLightState(l.entity_id); } }
+    }
+    return { speech: `Turned on ${target}.`, response_type: 'action_done' };
+  }
+  const dimMatch = t.match(/(?:set|dim|change)\s+(?:the\s+)?(.+?)\s+(?:lights?\s+)?to\s+(\d{1,3})\s*%?/);
+  if (dimMatch) {
+    const target = dimMatch[1];
+    const pct = Math.max(0, Math.min(100, parseInt(dimMatch[2], 10)));
+    for (const r of lightsState.rooms) {
+      if (!r.name.toLowerCase().includes(target)) continue;
+      for (const l of r.lights) { l.on = pct > 0; l.brightness_pct = pct; broadcastLightState(l.entity_id); }
+    }
+    return { speech: `Set the ${target} lights to ${pct} percent.`, response_type: 'action_done' };
+  }
+
+  // Sensor-style queries
+  if (/temperature|how (warm|hot|cold)/.test(t)) {
+    const room = (t.match(/(living room|bedroom|kitchen|office|hallway|bathroom)/) || [])[1] || 'living room';
+    const temp = (19 + Math.random() * 4).toFixed(1);
+    return { speech: `It's ${temp}°C in the ${room}.`, response_type: 'query_answer' };
+  }
+  if (/weather|forecast/.test(t)) {
+    return { speech: 'It\'s 14°C and partly cloudy. High of 17°C, low of 9°C tonight.', response_type: 'query_answer' };
+  }
+  if (/who('s| is) home|anyone home/.test(t)) {
+    return { speech: 'You and one other person are home right now.', response_type: 'query_answer' };
+  }
+  if (/lights? (are )?on|how many lights/.test(t)) {
+    const all = lightsState.rooms.flatMap((r) => r.lights);
+    const onCount = all.filter((l) => l.on).length;
+    return { speech: `${onCount} of ${all.length} lights are on.`, response_type: 'query_answer' };
+  }
+
+  // Generic LLM-style fallback
+  if (session.turns === 1) {
+    return { speech: 'Hi — I\'m the mock Assist agent. Try "turn off the living room lights" or "what\'s the temperature in the kitchen?"', response_type: 'action_done' };
+  }
+  return { speech: `(mock) I heard "${text}" but I don\'t have a real LLM in dev. Try a light command like "turn on the office".`, response_type: 'action_done' };
+}
+
+app.post('/api/chat', express.json({ limit: '64kb' }), (req, res) => {
+  const { text, conversation_id } = req.body || {};
+  if (typeof text !== 'string' || !text.trim()) return res.status(400).json({ error: 'text must be a non-empty string' });
+  if (text.length > 4000) return res.status(400).json({ error: 'text exceeds 4000 chars' });
+  const sessionId = conversation_id || `mock-${Math.random().toString(36).slice(2, 10)}`;
+  setTimeout(() => {
+    const reply = chatReply(text.trim(), sessionId);
+    res.json({
+      conversation_id: sessionId,
+      speech: reply.speech,
+      response_type: reply.response_type,
+      raw: { mock: true },
+    });
+  }, CHAT_LATENCY_MS + Math.random() * 400);
+});
 
 // ── Alerts mock ────────────────────────────────────────
 const mockActiveAlerts = [];

@@ -1,0 +1,479 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>chat — burkii.home</title>
+<link rel="icon" href="/favicon.ico">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="burkii.home">
+<meta name="theme-color" content="#282a36">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Rajdhani:wght@500;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #282a36;
+  --bg-alt: #1e1f29;
+  --surface: #343746;
+  --current-line: #44475a;
+  --fg: #f8f8f2;
+  --comment: #6272a4;
+  --green: #50fa7b;
+  --yellow: #f1fa8c;
+  --orange: #ffb86c;
+  --red: #ff5555;
+  --pink: #ff79c6;
+  --purple: #bd93f9;
+  --cyan: #8be9fd;
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: Rajdhani, "JetBrains Mono", monospace;
+  color-scheme: dark;
+  display: flex; flex-direction: column;
+  min-height: 100vh;
+}
+
+header {
+  border-bottom: 1px solid var(--current-line);
+  background: linear-gradient(180deg, var(--bg-alt) 0%, var(--bg) 100%);
+  padding: 1.25rem 2rem;
+  display: flex; align-items: center; gap: 1.25rem; flex-wrap: wrap;
+}
+.brand {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 1.5rem; font-weight: 700; letter-spacing: -0.02em;
+  text-decoration: none; color: inherit;
+}
+.brand .bracket { color: var(--comment); }
+.brand .domain  { color: var(--purple); }
+.brand .tld     { color: var(--pink); }
+.crumb {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.78rem; color: var(--comment);
+}
+.crumb .sep { color: var(--current-line); margin: 0 0.5ch; }
+.crumb .here { color: var(--cyan); }
+
+.status-chip {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.08em;
+  color: var(--comment);
+  display: inline-flex; align-items: center; gap: 0.4rem;
+  margin-left: auto;
+}
+.status-chip .dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--comment);
+}
+.status-chip[data-status="ready"] .dot   { background: var(--green); box-shadow: 0 0 6px var(--green); }
+.status-chip[data-status="working"] .dot { background: var(--yellow); box-shadow: 0 0 6px var(--yellow); animation: pulse 1.2s ease-in-out infinite; }
+.status-chip[data-status="error"] .dot   { background: var(--red); box-shadow: 0 0 6px var(--red); }
+@keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+main {
+  flex: 1;
+  width: 100%;
+  max-width: 880px;
+  margin: 0 auto;
+  padding: 1.5rem 1.5rem 0;
+  display: flex; flex-direction: column;
+  min-height: 0;
+}
+
+.transcript {
+  flex: 1;
+  overflow-y: auto;
+  padding-bottom: 1rem;
+  display: flex; flex-direction: column; gap: 1rem;
+  scroll-behavior: smooth;
+}
+
+.empty-state {
+  margin: auto 0;
+  padding: 2rem 0;
+  text-align: center;
+  color: var(--comment);
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.85rem;
+  display: flex; flex-direction: column; gap: 0.75rem;
+}
+.empty-state .heading {
+  font-family: Rajdhani, monospace;
+  font-size: 1.4rem; font-weight: 500;
+  color: var(--fg);
+  letter-spacing: 0.01em;
+}
+.empty-state .heading .accent { color: var(--cyan); }
+.empty-state .examples {
+  display: flex; flex-direction: column; gap: 0.4rem;
+  max-width: 480px;
+  margin: 0.5rem auto 0;
+}
+.empty-state .example {
+  text-align: left;
+  background: var(--surface);
+  border: 1px solid var(--current-line);
+  border-radius: 4px;
+  padding: 0.55rem 0.85rem;
+  color: var(--fg);
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.78rem;
+  cursor: pointer;
+  transition: border-color 160ms var(--ease-out), color 160ms var(--ease-out);
+}
+.empty-state .example::before { content: "$ "; color: var(--green); }
+@media (hover: hover) and (pointer: fine) {
+  .empty-state .example:hover { border-color: var(--cyan); color: var(--cyan); }
+}
+
+.msg {
+  display: flex; flex-direction: column;
+  max-width: 85%;
+  animation: msgIn 220ms var(--ease-out) both;
+}
+@keyframes msgIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.msg-meta {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.65rem; text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--comment);
+  margin-bottom: 0.3rem;
+}
+.msg-bubble {
+  padding: 0.7rem 1rem;
+  border-radius: 6px;
+  border: 1px solid var(--current-line);
+  background: var(--surface);
+  font-size: 0.95rem;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+.msg.user { align-self: flex-end; align-items: flex-end; }
+.msg.user .msg-meta { color: var(--purple); }
+.msg.user .msg-bubble {
+  background: rgba(189,147,249,0.10);
+  border-color: rgba(189,147,249,0.35);
+}
+.msg.assistant .msg-meta { color: var(--cyan); }
+.msg.assistant .msg-bubble {
+  border-color: rgba(139,233,253,0.25);
+}
+.msg.assistant.action .msg-bubble {
+  border-color: rgba(80,250,123,0.35);
+  background: rgba(80,250,123,0.06);
+}
+.msg.assistant.error .msg-meta { color: var(--red); }
+.msg.assistant.error .msg-bubble {
+  border-color: rgba(255,85,85,0.35);
+  background: rgba(255,85,85,0.06);
+  color: var(--red);
+}
+.msg-tag {
+  display: inline-block;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.6rem;
+  text-transform: uppercase; letter-spacing: 0.1em;
+  margin-left: 0.5ch;
+  padding: 0 0.45ch;
+  border-radius: 2px;
+  background: rgba(80,250,123,0.15);
+  color: var(--green);
+}
+
+.typing { display: inline-flex; gap: 0.25rem; padding: 0.2rem 0; }
+.typing span {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--comment);
+  animation: typing 1.2s ease-in-out infinite;
+}
+.typing span:nth-child(2) { animation-delay: 0.15s; }
+.typing span:nth-child(3) { animation-delay: 0.3s; }
+@keyframes typing {
+  0%,60%,100% { opacity: 0.3; transform: translateY(0); }
+  30% { opacity: 1; transform: translateY(-2px); }
+}
+
+.composer {
+  position: sticky;
+  bottom: 0;
+  padding: 0.75rem 0 1rem;
+  background: linear-gradient(180deg, transparent 0%, var(--bg) 30%);
+}
+.composer-inner {
+  display: flex; gap: 0.5rem;
+  background: var(--surface);
+  border: 1px solid var(--current-line);
+  border-radius: 6px;
+  padding: 0.4rem 0.5rem 0.4rem 0.85rem;
+  align-items: flex-end;
+  transition: border-color 160ms var(--ease-out);
+}
+.composer-inner:focus-within {
+  border-color: var(--cyan);
+}
+.composer .prompt {
+  font-family: "JetBrains Mono", monospace;
+  color: var(--green);
+  padding: 0.55rem 0;
+  font-size: 0.95rem;
+  user-select: none;
+}
+.composer textarea {
+  flex: 1;
+  background: transparent;
+  border: 0;
+  resize: none;
+  color: var(--fg);
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.95rem;
+  line-height: 1.4;
+  padding: 0.55rem 0;
+  max-height: 180px;
+  outline: none;
+}
+.composer textarea::placeholder { color: var(--comment); }
+.composer button {
+  background: transparent;
+  color: var(--cyan);
+  border: 1px solid rgba(139,233,253,0.35);
+  border-radius: 4px;
+  padding: 0.45rem 0.85rem;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+  transition: background 160ms var(--ease-out), color 160ms var(--ease-out), border-color 160ms var(--ease-out);
+  align-self: stretch;
+}
+.composer button:hover:not(:disabled) {
+  background: rgba(139,233,253,0.10);
+}
+.composer button:disabled {
+  color: var(--comment);
+  border-color: var(--current-line);
+  cursor: not-allowed;
+}
+.composer-foot {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-top: 0.4rem;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.65rem;
+  color: var(--comment);
+  letter-spacing: 0.04em;
+}
+.composer-foot .reset {
+  background: none; border: none;
+  color: var(--comment);
+  font-family: inherit; font-size: inherit;
+  cursor: pointer;
+  text-transform: uppercase; letter-spacing: 0.08em;
+}
+.composer-foot .reset:hover { color: var(--pink); }
+.composer-foot .conv-id { font-family: "JetBrains Mono", monospace; }
+
+@media (max-width: 520px) {
+  header { padding: 1rem 1.25rem; gap: 0.6rem; }
+  .brand { font-size: 1.25rem; }
+  main { padding: 1rem 1rem 0; }
+  .msg { max-width: 92%; }
+  .msg-bubble { font-size: 0.9rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .msg, .typing span, .status-chip[data-status="working"] .dot { animation: none; }
+}
+</style>
+</head>
+<body>
+<header>
+  <a class="brand" href="/"><span class="bracket">[</span><span class="domain">burkii</span><span class="tld">.home</span><span class="bracket">]</span></a>
+  <div class="crumb"><a href="/" style="color:inherit;text-decoration:none;">~</a><span class="sep">/</span><span class="here">chat</span></div>
+  <div class="status-chip" id="statusChip" data-status="ready"><span class="dot"></span><span id="statusLabel">ready</span></div>
+</header>
+<main>
+  <div class="transcript" id="transcript">
+    <div class="empty-state" id="emptyState">
+      <div class="heading">talk to <span class="accent">home</span></div>
+      <div>connected to home assistant via the same assist pipeline as your voice assistant — say what you'd say out loud</div>
+      <div class="examples">
+        <button class="example" data-example="turn off all the lights">turn off all the lights</button>
+        <button class="example" data-example="what's the temperature in the living room?">what's the temperature in the living room?</button>
+        <button class="example" data-example="set the bedroom lights to 30%">set the bedroom lights to 30%</button>
+      </div>
+    </div>
+  </div>
+  <form class="composer" id="composer">
+    <div class="composer-inner">
+      <span class="prompt">$</span>
+      <textarea id="input" rows="1" placeholder="type a command or question…" autocomplete="off" spellcheck="true"></textarea>
+      <button type="submit" id="sendBtn">send</button>
+    </div>
+    <div class="composer-foot">
+      <button type="button" class="reset" id="resetBtn">reset conversation</button>
+      <span class="conv-id" id="convIdLabel">no session</span>
+    </div>
+  </form>
+</main>
+<script>
+const transcriptEl = document.getElementById('transcript');
+const emptyStateEl = document.getElementById('emptyState');
+const inputEl = document.getElementById('input');
+const sendBtn = document.getElementById('sendBtn');
+const resetBtn = document.getElementById('resetBtn');
+const convIdLabel = document.getElementById('convIdLabel');
+const statusChip = document.getElementById('statusChip');
+const statusLabel = document.getElementById('statusLabel');
+const composer = document.getElementById('composer');
+
+let conversationId = null;
+let inFlight = false;
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, (c) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+}
+
+function setStatus(state, label) {
+  statusChip.dataset.status = state;
+  statusLabel.textContent = label;
+}
+
+function setConvId(id) {
+  conversationId = id || null;
+  convIdLabel.textContent = id ? `session ${id.slice(0, 8)}` : 'no session';
+}
+
+function hideEmpty() {
+  if (emptyStateEl && !emptyStateEl.hidden) emptyStateEl.hidden = true;
+}
+
+function appendMessage({ role, text, kind, tag }) {
+  hideEmpty();
+  const wrap = document.createElement('div');
+  wrap.className = `msg ${role}${kind ? ` ${kind}` : ''}`;
+  const meta = document.createElement('div');
+  meta.className = 'msg-meta';
+  meta.textContent = role === 'user' ? 'you' : 'home';
+  if (tag) {
+    const tagEl = document.createElement('span');
+    tagEl.className = 'msg-tag';
+    tagEl.textContent = tag;
+    meta.appendChild(tagEl);
+  }
+  const bubble = document.createElement('div');
+  bubble.className = 'msg-bubble';
+  bubble.textContent = text;
+  wrap.appendChild(meta);
+  wrap.appendChild(bubble);
+  transcriptEl.appendChild(wrap);
+  transcriptEl.scrollTop = transcriptEl.scrollHeight;
+  return { wrap, bubble };
+}
+
+function appendTyping() {
+  hideEmpty();
+  const wrap = document.createElement('div');
+  wrap.className = 'msg assistant';
+  const meta = document.createElement('div');
+  meta.className = 'msg-meta';
+  meta.textContent = 'home';
+  const bubble = document.createElement('div');
+  bubble.className = 'msg-bubble';
+  bubble.innerHTML = '<span class="typing"><span></span><span></span><span></span></span>';
+  wrap.appendChild(meta);
+  wrap.appendChild(bubble);
+  transcriptEl.appendChild(wrap);
+  transcriptEl.scrollTop = transcriptEl.scrollHeight;
+  return wrap;
+}
+
+function autosize() {
+  inputEl.style.height = 'auto';
+  inputEl.style.height = Math.min(inputEl.scrollHeight, 180) + 'px';
+}
+inputEl.addEventListener('input', autosize);
+
+inputEl.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    composer.requestSubmit();
+  }
+});
+
+document.querySelectorAll('.example').forEach((btn) => {
+  btn.addEventListener('click', () => {
+    inputEl.value = btn.dataset.example;
+    autosize();
+    inputEl.focus();
+  });
+});
+
+resetBtn.addEventListener('click', () => {
+  setConvId(null);
+  setStatus('ready', 'ready · new session');
+});
+
+composer.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  if (inFlight) return;
+  const text = inputEl.value.trim();
+  if (!text) return;
+
+  appendMessage({ role: 'user', text });
+  inputEl.value = '';
+  autosize();
+
+  inFlight = true;
+  sendBtn.disabled = true;
+  setStatus('working', 'thinking…');
+  const typingNode = appendTyping();
+
+  try {
+    const res = await fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text, conversation_id: conversationId || undefined }),
+    });
+    typingNode.remove();
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || `HTTP ${res.status}`);
+    }
+    const data = await res.json();
+    if (data.conversation_id) setConvId(data.conversation_id);
+    const speech = (data.speech && data.speech.trim()) || '(no response)';
+    const isAction = data.response_type === 'action_done';
+    appendMessage({
+      role: 'assistant',
+      text: speech,
+      kind: isAction ? 'action' : null,
+      tag: isAction ? 'action' : null,
+    });
+    setStatus('ready', 'ready');
+  } catch (err) {
+    typingNode.remove();
+    appendMessage({ role: 'assistant', text: err.message, kind: 'error' });
+    setStatus('error', 'error');
+  } finally {
+    inFlight = false;
+    sendBtn.disabled = false;
+    inputEl.focus();
+  }
+});
+
+inputEl.focus();
+</script>
+</body>
+</html>

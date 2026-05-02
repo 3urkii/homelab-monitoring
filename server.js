@@ -79,6 +79,12 @@ function validateConfig(cfg) {
       if (!ha.token || typeof ha.token !== 'string' || ha.token.includes('REPLACE_ME')) {
         errors.push('homeAssistant.token must be a non-empty long-lived access token');
       }
+      if (ha.conversationAgentId !== undefined && (typeof ha.conversationAgentId !== 'string' || !ha.conversationAgentId)) {
+        errors.push('homeAssistant.conversationAgentId must be a non-empty string if set');
+      }
+      if (ha.conversationLanguage !== undefined && (typeof ha.conversationLanguage !== 'string' || !ha.conversationLanguage)) {
+        errors.push('homeAssistant.conversationLanguage must be a non-empty string if set');
+      }
     }
   }
   if (errors.length) {
@@ -243,6 +249,43 @@ function main() {
       try {
         await haClient.callService('scene', 'turn_on', { entity_id: entityId });
         res.json({ ok: true });
+      } catch (err) {
+        res.status(502).json({ error: err.message });
+      }
+    });
+
+    app.get('/chat', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'chat.html')));
+
+    app.post('/api/chat', async (req, res) => {
+      const { text, conversation_id } = req.body || {};
+      if (typeof text !== 'string' || !text.trim()) {
+        return res.status(400).json({ error: 'text must be a non-empty string' });
+      }
+      if (text.length > 4000) {
+        return res.status(400).json({ error: 'text exceeds 4000 chars' });
+      }
+      if (conversation_id !== undefined && (typeof conversation_id !== 'string' || conversation_id.length > 128)) {
+        return res.status(400).json({ error: 'conversation_id must be a string up to 128 chars' });
+      }
+      try {
+        const result = await haClient.conversationProcess({
+          text: text.trim(),
+          conversation_id: conversation_id || undefined,
+          agent_id: config.homeAssistant.conversationAgentId,
+          language: config.homeAssistant.conversationLanguage || 'en',
+        });
+        const speech = result?.response?.response?.speech?.plain?.speech
+          ?? result?.response?.speech?.plain?.speech
+          ?? '';
+        const responseType = result?.response?.response_type
+          ?? result?.response?.response?.response_type
+          ?? null;
+        res.json({
+          conversation_id: result?.conversation_id || conversation_id || null,
+          speech,
+          response_type: responseType,
+          raw: result,
+        });
       } catch (err) {
         res.status(502).json({ error: err.message });
       }
