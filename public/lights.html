@@ -255,17 +255,23 @@ input[type=range].brightness {
 <script src="/theme.js" defer></script>
 </head>
 <body>
+<div class="page-chrome">
 <header class="page-header page-header--sub">
   <a class="back-btn" href="/" aria-label="back to dashboard">&larr;</a>
   <span class="brand brand--compact">
     <span class="brand-mark">burkii</span><span class="brand-sub">/lights</span>
   </span>
-  <div class="header-tools">
-    <span class="count-chip"><strong id="onCount">0</strong> on / <span id="totalCount">0</span></span>
-    <button class="all-off-btn" id="allOffBtn" type="button" disabled>ALL OFF</button>
-    <div class="status-chip" id="connStatus" data-status="down"><span class="dot"></span><span id="connLabel">connecting</span></div>
+  <div class="header-chrome">
+    <span data-theme-mount></span>
   </div>
 </header>
+<div class="page-subbar">
+  <div class="status-chip" id="connStatus" data-status="down"><span class="dot"></span><span id="connLabel">connecting</span></div>
+  <span class="count-chip"><strong id="onCount">0</strong> on / <span id="totalCount">0</span></span>
+  <div class="spacer"></div>
+  <button class="all-off-btn" id="allOffBtn" type="button" disabled>ALL OFF</button>
+</div>
+</div>
 <main>
   <div class="error-banner" id="errorBanner">home-assistant offline — reconnecting…</div>
   <section>
