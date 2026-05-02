@@ -241,16 +241,12 @@ input[type=range].brightness {
   .power-orb { width: 44px; height: 44px; font-size: 16px; }
   .room-name { font-size: 0.95rem; letter-spacing: 0.05em; }
   .room-sheet {
-    inset: auto 0 0 0;
-    max-height: 90vh;
-    width: 100vw;
-    max-width: 100vw;
-    margin: 0;
-    border-radius: 12px 12px 0 0;
-    border-bottom: 0;
+    max-height: 85vh;
+    width: calc(100vw - 1.5rem);
+    max-width: calc(100vw - 1.5rem);
   }
   .sheet-inner {
-    max-height: 90vh;
+    max-height: 85vh;
     padding-bottom: calc(1.2rem + env(safe-area-inset-bottom, 0px));
   }
 }
