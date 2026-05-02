@@ -508,7 +508,7 @@ h1 .tld {
 .weather-chip[hidden] { display: none; }
 .weather-chip .w-temp { color: var(--cyan); font-weight: 700; }
 .weather-chip .w-cond { color: var(--comment); text-transform: lowercase; }
-.weather-chip .w-icon { display: inline-flex; width: 12px; height: 12px; color: var(--cyan); }
+.weather-chip .w-icon { display: inline-flex; width: 16px; height: 16px; color: var(--cyan); }
 .weather-chip .w-icon svg { width: 100%; height: 100%; }
 @media (hover: hover) and (pointer: fine) {
   .weather-chip:hover .w-temp,
