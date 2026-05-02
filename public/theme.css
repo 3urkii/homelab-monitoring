@@ -482,8 +482,7 @@ h1 .tld {
   width: 0.55ch;
   height: 0.95em;
   vertical-align: -2px;
-  background: var(--green);
+  background: var(--fg);
   margin-left: 3px;
   animation: brandBlink 1.05s steps(1) infinite;
-  box-shadow: 0 0 6px rgba(var(--green-rgb), 0.6);
 }
