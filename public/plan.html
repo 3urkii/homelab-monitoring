@@ -389,9 +389,9 @@ footer .prompt { color: var(--green); margin-right: 0.5ch; }
     <div class="chart-panel">
       <div class="chart-toolbar">
         <div class="preset-picker" id="presetPicker">
-          <button class="preset-btn" type="button" data-preset="all" data-active="true">ALL</button>
+          <button class="preset-btn" type="button" data-preset="perf" data-active="true">PERF</button>
           <button class="preset-btn" type="button" data-preset="players">PLAYERS</button>
-          <button class="preset-btn" type="button" data-preset="perf">PERF</button>
+          <button class="preset-btn" type="button" data-preset="all">ALL</button>
           <button class="preset-btn" type="button" data-preset="world">WORLD</button>
         </div>
         <div class="chart-toolbar-right">
@@ -443,26 +443,36 @@ let unifiedChart = null;
 let rawOnlineData = null;
 let rawPerfData = null;
 let chartRange = '24h';
-let activePreset = 'all';
+let activePreset = 'perf';
 var RANGE_MS = { '1h': 3600000, '24h': 86400000, '7d': 604800000, '30d': 2592000000 };
 
 var METRIC_DEFS = [
-  { key: 'playersOnline', label: 'players', color: '#50fa7b', fill: 'rgba(var(--green-rgb), 0.08)', width: 1.5, scale: 'count' },
-  { key: 'tps',           label: 'TPS',     color: '#f1fa8c', fill: null,                    width: 1.5, scale: 'tps' },
-  { key: 'cpu',           label: 'CPU %',   color: '#bd93f9', fill: null,                    width: 1.5, scale: 'pct', altKeys: ['cpu_usage', 'cpuUsage'] },
-  { key: 'ram',           label: 'RAM (MB)',color: '#ff79c6', fill: null,                    width: 1.5, scale: 'aux' },
-  { key: 'entities',      label: 'entities',color: '#ffb86c', fill: null,                    width: 1,   scale: 'count' },
-  { key: 'chunks',        label: 'chunks',  color: '#8be9fd', fill: null,                    width: 1,   scale: 'count' },
-  { key: 'disk',          label: 'disk',    color: '#ff5555', fill: null,                    width: 1,   scale: 'aux' },
-  { key: 'ping',          label: 'ping',    color: '#f8f8f2', fill: null,                    width: 1,   scale: 'aux', altKeys: ['avgPing'] },
+  { key: 'playersOnline', label: 'players', color: '#50fa7b', fill: 'rgba(var(--green-rgb), 0.08)', width: 2,   scale: 'count' },
+  { key: 'tps',           label: 'TPS',     color: '#f1fa8c', fill: null,                    width: 2,   scale: 'tps' },
+  { key: 'cpu',           label: 'CPU %',   color: '#bd93f9', fill: null,                    width: 2,   scale: 'pct', altKeys: ['cpu_usage', 'cpuUsage'] },
+  { key: 'ram',           label: 'RAM (MB)',color: '#ff79c6', fill: null,                    width: 2,   scale: 'ram' },
+  { key: 'entities',      label: 'entities',color: '#ffb86c', fill: null,                    width: 1.5, scale: 'count' },
+  { key: 'chunks',        label: 'chunks',  color: '#8be9fd', fill: null,                    width: 1.5, scale: 'count' },
+  { key: 'disk',          label: 'disk',    color: '#ff5555', fill: null,                    width: 1.5, scale: 'disk' },
+  { key: 'ping',          label: 'ping',    color: '#f8f8f2', fill: null,                    width: 1.5, scale: 'ping', altKeys: ['avgPing'] },
 ];
 
 var PRESETS = {
-  all:     METRIC_DEFS.map(function (m) { return m.key; }),
+  all:     ['tps', 'cpu', 'ram', 'playersOnline'],
   players: ['playersOnline', 'tps'],
-  perf:    ['tps', 'cpu', 'ram', 'disk'],
+  perf:    ['tps', 'cpu', 'ram'],
   world:   ['entities', 'chunks', 'playersOnline'],
 };
+
+function smartTickValues(suffix, digits) {
+  return function (u, vals) {
+    return vals.map(function (v) {
+      if (v == null) return '';
+      if (Math.abs(v) >= 1000) return (v / 1000).toFixed(1) + 'k' + (suffix || '');
+      return (digits != null ? v.toFixed(digits) : Math.round(v)) + (suffix || '');
+    });
+  };
+}
 
 function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -622,8 +632,11 @@ function renderUnifiedChart() {
     }
 
     seriesData.push(dataCol);
-    var seriesCfg = { label: m.label, stroke: m.color, width: m.width, scale: m.scale };
+    var seriesCfg = { label: m.label, stroke: m.color, width: m.width, scale: m.scale, points: { show: false } };
     if (m.fill) seriesCfg.fill = m.fill;
+    if (typeof uPlot !== 'undefined' && uPlot.paths && uPlot.paths.spline) {
+      seriesCfg.paths = uPlot.paths.spline();
+    }
     series.push(seriesCfg);
 
     if (!addedScales[m.scale]) {
@@ -631,14 +644,31 @@ function renderUnifiedChart() {
       if (m.scale === 'pct') {
         scalesCfg.pct = { range: [0, 100] };
         axesCfg.push({ scale: 'pct', stroke: '#bd93f9', grid: { stroke: '#44475a', width: 1 }, ticks: { stroke: '#44475a' },
-          values: function (u, vals) { return vals.map(function (v) { return v.toFixed(0) + '%'; }); } });
+          values: smartTickValues('%', 0) });
       } else if (m.scale === 'tps') {
         scalesCfg.tps = { range: [0, 22] };
         axesCfg.push({ side: 1, scale: 'tps', stroke: '#f1fa8c', grid: { show: false },
-          values: function (u, vals) { return vals.map(function (v) { return v.toFixed(0); }); } });
+          values: smartTickValues('', 0) });
       } else if (m.scale === 'count') {
         scalesCfg.count = { auto: true, range: function (u, lo, hi) { return [0, Math.max(hi, 1)]; } };
-        axesCfg.push({ scale: 'count', stroke: '#6272a4', grid: { stroke: '#44475a', width: 1 }, ticks: { stroke: '#44475a' } });
+        axesCfg.push({ scale: 'count', stroke: '#6272a4', grid: { stroke: '#44475a', width: 1 }, ticks: { stroke: '#44475a' },
+          values: smartTickValues('') });
+      } else if (m.scale === 'ram') {
+        scalesCfg.ram = { auto: true, range: function (u, lo, hi) {
+          if (lo == null || hi == null) return [0, 1];
+          var pad = Math.max((hi - lo) * 0.1, 1);
+          return [Math.max(0, lo - pad), hi + pad];
+        } };
+        axesCfg.push({ side: 1, scale: 'ram', stroke: '#ff79c6', grid: { show: false },
+          values: smartTickValues(' MB') });
+      } else if (m.scale === 'disk') {
+        scalesCfg.disk = { auto: true };
+        axesCfg.push({ side: 1, scale: 'disk', stroke: '#ff5555', grid: { show: false },
+          values: smartTickValues('') });
+      } else if (m.scale === 'ping') {
+        scalesCfg.ping = { auto: true };
+        axesCfg.push({ side: 1, scale: 'ping', stroke: '#f8f8f2', grid: { show: false },
+          values: smartTickValues(' ms', 0) });
       } else if (m.scale === 'aux') {
         scalesCfg.aux = { auto: true };
         axesCfg.push({ side: 1, scale: 'aux', stroke: '#6272a4', grid: { show: false } });

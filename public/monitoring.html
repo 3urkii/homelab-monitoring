@@ -957,6 +957,9 @@ function renderChart(data) {
   const netRxMB = netRxRaw.map((v) => v != null ? v / 1e6 : null);
   const netTxMB = netTxRaw.map((v) => v != null ? v / 1e6 : null);
 
+  const splinePath = (typeof uPlot !== 'undefined' && uPlot.paths && uPlot.paths.spline) ? uPlot.paths.spline() : null;
+  const mkSeries = (cfg) => splinePath ? { ...cfg, paths: splinePath, points: { show: false } } : { ...cfg, points: { show: false } };
+
   const opts = {
     width: canvas.clientWidth || 800,
     height: canvas.clientHeight || 360,
@@ -965,19 +968,22 @@ function renderChart(data) {
     scales: {
       x: { time: true },
       y:  { range: [0, 100], auto: false },
-      mb: { auto: true },
+      mb: { auto: true, range: (u, lo, hi) => {
+        if (hi == null || hi <= 0) return [0, 1];
+        return [0, hi * 1.1];
+      } },
     },
     axes: [
       { stroke: '#6272a4', grid: { stroke: '#44475a', width: 1 }, ticks: { stroke: '#44475a' } },
       { stroke: '#6272a4', grid: { stroke: '#44475a', width: 1 }, ticks: { stroke: '#44475a' }, values: (u, vals) => vals.map((v) => v + '%') },
-      { side: 1, scale: 'mb', stroke: '#8be9fd', grid: { show: false }, values: (u, vals) => vals.map((v) => v.toFixed(1) + ' MB/s') },
+      { side: 1, scale: 'mb', stroke: '#8be9fd', grid: { show: false }, values: (u, vals) => vals.map((v) => v >= 1 ? v.toFixed(1) + ' MB/s' : (v * 1000).toFixed(0) + ' KB/s') },
     ],
     series: [
       {},
-      { label: 'cpu',     stroke: '#bd93f9', width: 1.5, scale: 'y'  },
-      { label: 'mem',     stroke: '#ff79c6', width: 1.5, scale: 'y'  },
-      { label: 'rx MB/s', stroke: '#8be9fd', width: 1,   scale: 'mb' },
-      { label: 'tx MB/s', stroke: '#50fa7b', width: 1,   scale: 'mb' },
+      mkSeries({ label: 'cpu',     stroke: '#bd93f9', width: 2,   scale: 'y'  }),
+      mkSeries({ label: 'mem',     stroke: '#ff79c6', width: 2,   scale: 'y'  }),
+      mkSeries({ label: 'rx MB/s', stroke: '#8be9fd', width: 1.5, scale: 'mb' }),
+      mkSeries({ label: 'tx MB/s', stroke: '#50fa7b', width: 1.5, scale: 'mb' }),
     ],
   };
   var resetBtn = document.getElementById('chartResetBtn');
