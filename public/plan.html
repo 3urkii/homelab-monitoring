@@ -480,6 +480,13 @@ function rollingMean(arr, window) {
   return out;
 }
 
+// Scale smoothing window with data length so long ranges get heavier smoothing.
+// `base` is the minimum window for short series.
+function effectiveWindow(base, n) {
+  if (!base || n < 20) return base || 1;
+  return Math.max(base, Math.ceil(n / 30));
+}
+
 function smartTickValues(suffix, digits) {
   return function (u, vals) {
     return vals.map(function (v) {
@@ -647,7 +654,7 @@ function renderUnifiedChart() {
       dataCol = points.map(function (p) { return p[kIdx] ?? null; });
     }
 
-    if (m.smooth) dataCol = rollingMean(dataCol, m.smooth);
+    if (m.smooth) dataCol = rollingMean(dataCol, effectiveWindow(m.smooth, dataCol.length));
 
     seriesData.push(dataCol);
     var seriesCfg = { label: m.label, stroke: m.color, width: m.width, scale: m.scale, points: { show: false } };
