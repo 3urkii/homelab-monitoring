@@ -450,7 +450,7 @@ var METRIC_DEFS = [
   { key: 'playersOnline', label: 'players', color: '#50fa7b', fill: 'rgba(var(--green-rgb), 0.08)', width: 2,   scale: 'count' },
   { key: 'tps',           label: 'TPS',     color: '#f1fa8c', fill: null,                    width: 2,   scale: 'tps' },
   { key: 'cpu',           label: 'CPU %',   color: '#bd93f9', fill: null,                    width: 2,   scale: 'pct', altKeys: ['cpu_usage', 'cpuUsage'] },
-  { key: 'ram',           label: 'RAM (MB)',color: '#ff79c6', fill: null,                    width: 2,   scale: 'ram' },
+  { key: 'ram',           label: 'RAM (MB)',color: '#ff79c6', fill: null,                    width: 2,   scale: 'ram', smooth: 7 },
   { key: 'entities',      label: 'entities',color: '#ffb86c', fill: null,                    width: 1.5, scale: 'count' },
   { key: 'chunks',        label: 'chunks',  color: '#8be9fd', fill: null,                    width: 1.5, scale: 'count' },
   { key: 'disk',          label: 'disk',    color: '#ff5555', fill: null,                    width: 1.5, scale: 'disk' },
@@ -463,6 +463,22 @@ var PRESETS = {
   perf:    ['tps', 'cpu', 'ram'],
   world:   ['entities', 'chunks', 'playersOnline'],
 };
+
+function rollingMean(arr, window) {
+  if (!window || window < 2) return arr;
+  var half = Math.floor(window / 2);
+  var out = new Array(arr.length);
+  for (var i = 0; i < arr.length; i++) {
+    var sum = 0, n = 0;
+    for (var j = Math.max(0, i - half); j <= Math.min(arr.length - 1, i + half); j++) {
+      var v = arr[j];
+      if (v == null || isNaN(v)) continue;
+      sum += v; n++;
+    }
+    out[i] = n > 0 ? sum / n : null;
+  }
+  return out;
+}
 
 function smartTickValues(suffix, digits) {
   return function (u, vals) {
@@ -630,6 +646,8 @@ function renderUnifiedChart() {
       if (kIdx < 0) continue;
       dataCol = points.map(function (p) { return p[kIdx] ?? null; });
     }
+
+    if (m.smooth) dataCol = rollingMean(dataCol, m.smooth);
 
     seriesData.push(dataCol);
     var seriesCfg = { label: m.label, stroke: m.color, width: m.width, scale: m.scale, points: { show: false } };
