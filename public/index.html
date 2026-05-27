@@ -215,6 +215,7 @@ footer .prompt { color: var(--green); margin-right: 0.5ch; }
 </style>
 <script src="/theme.js" defer></script>
 <script src="/weather.js" defer></script>
+<script src="/tv.js" defer></script>
 </head>
 <body>
 <div class="page-chrome">
@@ -227,6 +228,12 @@ footer .prompt { color: var(--green); margin-right: 0.5ch; }
       <span class="w-icon" id="weatherChipIcon"></span>
       <span class="w-temp" id="weatherChipTemp">--°</span>
       <span class="w-cond" id="weatherChipCond">…</span>
+    </button>
+    <button class="tv-chip" id="tvChip" type="button" aria-haspopup="dialog" aria-expanded="false" aria-controls="tvRemote" hidden>
+      <span class="tv-icon" aria-hidden="true">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M3 5h18a1 1 0 011 1v11a1 1 0 01-1 1H3a1 1 0 01-1-1V6a1 1 0 011-1zm5 15h8v2H8v-2z"/></svg>
+      </span>
+      <span class="sr-only" style="position:absolute;left:-9999px;">tv remote</span>
     </button>
     <div class="clock"><span class="prompt">$</span><span data-clock-h>--</span><span class="colon">:</span><span data-clock-m>--</span></div>
     <span data-theme-mount></span>
@@ -318,6 +325,25 @@ footer .prompt { color: var(--green); margin-right: 0.5ch; }
     </div>
   </section>
 </main>
+<dialog class="tv-remote-sheet" id="tvRemote" aria-label="tv remote">
+  <div class="sheet-glow" aria-hidden="true"></div>
+  <div class="sheet-inner">
+    <div class="sheet-head">
+      <span class="sheet-section-label"><span class="accent">&gt;</span>tv remote</span>
+      <button class="sheet-close" data-tv-close type="button" aria-label="close">×</button>
+    </div>
+    <div class="tv-status" data-tv-status hidden></div>
+    <button class="tv-power" data-tv-power type="button" aria-pressed="false" aria-label="power">⏻</button>
+    <div class="tv-power-label" data-tv-power-label>—</div>
+    <div class="tv-volume-row">
+      <button class="tv-vol-btn" data-tv-vol="down" type="button" aria-label="volume down">−</button>
+      <button class="tv-vol-btn tv-vol-mute" data-tv-vol="mute" type="button" aria-pressed="false" aria-label="mute"></button>
+      <button class="tv-vol-btn" data-tv-vol="up" type="button" aria-label="volume up">+</button>
+    </div>
+    <div class="sheet-section-label"><span class="accent">&gt;</span>shortcuts</div>
+    <div class="tv-shortcut-grid" data-tv-shortcuts></div>
+  </div>
+</dialog>
 <footer><span class="prompt">$</span>burkii.home — local home network hub</footer>
 <script>
 const POLL_INTERVAL_MS = 5000;
