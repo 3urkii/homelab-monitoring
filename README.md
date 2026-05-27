@@ -169,6 +169,10 @@ Restart the dashboard. A `lights` link appears in the header; `/lights` is also 
 - When HA is unreachable, the page shows a `home-assistant offline — reconnecting…` banner; commands still queue but `GET /api/lights` returns `503 Home Assistant offline` until the WS reconnects.
 - Lights/scenes are grouped by HA "area". Anything without an area lands in `Unassigned`. Color picker is shown only for bulbs whose `supported_color_modes` includes `hs`/`rgb`/`rgbw`/`rgbww`/`xy`. Unreachable bulbs (`state == "unavailable"`) render greyed out and disabled.
 
+### TV remote
+
+Set `config.tv` (requires `homeAssistant`) to mount a TV-remote button in the top bar of `/` and `/lights`. The remote drives `media_player.*` entities — power, volume, mute, and a configurable 2×2 grid of one-tap source shortcuts (HDMI inputs, apps). See `config.example.js` for the schema.
+
 ## Known limitations
 
 - **QEMU VM disk usage** reports as `0 B / 0 B` unless `qemu-guest-agent` is installed inside the guest. LXC containers report correctly.

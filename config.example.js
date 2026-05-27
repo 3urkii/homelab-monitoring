@@ -57,6 +57,24 @@ module.exports = {
   //   conversationLanguage: "en",
   // },
 
+  // TV remote — adds a tv-icon button to the top bar of /landing and /lights.
+  // Drives Home Assistant media_player entities. Requires homeAssistant above.
+  // - powerEntity: which media_player handles turn_on / turn_off
+  // - volumeEntity: which media_player handles volume_up / volume_down / volume_mute
+  // - shortcuts: 2x2 grid of one-tap source buttons. `source` is the literal
+  //   string from the entity's source_list attribute. `icon` is a filename in
+  //   public/icons/ (currently ship: plex.svg, scenes.svg, pc.svg, switch.svg).
+  // tv: {
+  //   powerEntity:  "media_player.REPLACE_ME",
+  //   volumeEntity: "media_player.REPLACE_ME",
+  //   shortcuts: [
+  //     { id: "plex",   label: "plex",   icon: "plex.svg",   entity: "media_player.REPLACE_ME", source: "Plex" },
+  //     { id: "scenes", label: "scenes", icon: "scenes.svg", entity: "media_player.REPLACE_ME", source: "scenescapes" },
+  //     { id: "pc",     label: "pc",     icon: "pc.svg",     entity: "media_player.REPLACE_ME", source: "win-pc" },
+  //     { id: "switch", label: "switch", icon: "switch.svg", entity: "media_player.REPLACE_ME", source: "Nintendo Switch" },
+  //   ],
+  // },
+
   // Weather widget on the landing page. Powered by Open-Meteo (no API key).
   // Omit this block to hide the weather chip entirely. Coords don't need to be
   // exact — the nearest grid cell is used. unit defaults to "celsius".
