@@ -654,8 +654,6 @@ h1 .tld {
 .tv-chip[data-tv-on="true"]:hover { color: var(--pink); border-color: var(--pink); }
 
 .tv-remote-sheet {
-  position: fixed;
-  inset: auto;
   margin: auto;
   width: 320px;
   max-width: 92vw;
