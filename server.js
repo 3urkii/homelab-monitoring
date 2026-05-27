@@ -390,6 +390,41 @@ function main() {
     });
   }
 
+  if (config.tv) {
+    app.get('/api/tv', (_req, res) => {
+      if (!haClient.isConnected()) {
+        return res.status(503).json({ error: 'home assistant offline' });
+      }
+      res.json(buildTvSnapshot(config.tv, haClient));
+    });
+
+    app.post('/api/tv/power', async (req, res) => {
+      if (!haClient.isConnected()) {
+        return res.status(503).json({ error: 'home assistant offline' });
+      }
+      const body = req.body || {};
+      const allowed = new Set(['on']);
+      for (const k of Object.keys(body)) {
+        if (!allowed.has(k)) return res.status(400).json({ error: `unknown field: ${k}` });
+      }
+      let on = body.on;
+      if (on === undefined || on === null) {
+        const cur = haClient.getMediaPlayerState(config.tv.powerEntity);
+        on = !cur?.on;
+      } else if (typeof on !== 'boolean') {
+        return res.status(400).json({ error: 'on must be a boolean' });
+      }
+      try {
+        await haClient.callService('media_player', on ? 'turn_on' : 'turn_off', {
+          entity_id: config.tv.powerEntity,
+        });
+        res.json({ ok: true });
+      } catch (err) {
+        res.status(502).json({ error: err.message });
+      }
+    });
+  }
+
   if (config.plan) {
     app.get('/plan', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'plan.html')));
 
