@@ -6,8 +6,10 @@ const {
   parseLights,
   parseLightState,
   parseSceneState,
+  parseMediaPlayerState,
   buildEntityToAreaMap,
   isLightOrScene,
+  isTracked,
   pctToBrightness,
   brightnessToPct,
   lightSupportsColor,
@@ -134,4 +136,60 @@ test('lightSupportsColor: detects color-capable modes', () => {
   assert.equal(lightSupportsColor({ supported_color_modes: ['onoff', 'brightness'] }), false);
   assert.equal(lightSupportsColor({}), false);
   assert.equal(lightSupportsColor(undefined), false);
+});
+
+test('parseMediaPlayerState: on with source, volume, mute', () => {
+  const s = states.find((x) => x.entity_id === 'media_player.da_tele_2');
+  const out = parseMediaPlayerState(s);
+  assert.equal(out.entity_id, 'media_player.da_tele_2');
+  assert.equal(out.name, 'Living Room TV');
+  assert.equal(out.state, 'on');
+  assert.equal(out.on, true);
+  assert.equal(out.source, 'Plex');
+  assert.deepEqual(out.source_list, ['Plex', 'YouTube', 'Home']);
+  assert.equal(out.volume_level, 0.42);
+  assert.equal(out.is_volume_muted, false);
+});
+
+test('parseMediaPlayerState: muted, vizio', () => {
+  const s = states.find((x) => x.entity_id === 'media_player.vizio_tv_2545_television');
+  const out = parseMediaPlayerState(s);
+  assert.equal(out.is_volume_muted, true);
+  assert.equal(out.source, 'scenescapes');
+});
+
+test('parseMediaPlayerState: off', () => {
+  const s = states.find((x) => x.entity_id === 'media_player.tv_off');
+  const out = parseMediaPlayerState(s);
+  assert.equal(out.state, 'off');
+  assert.equal(out.on, false);
+  assert.equal(out.source, null);
+  assert.deepEqual(out.source_list, []);
+  assert.equal(out.volume_level, null);
+  assert.equal(out.is_volume_muted, false);
+});
+
+test('parseMediaPlayerState: playing/paused count as on', () => {
+  const out1 = parseMediaPlayerState({ entity_id: 'media_player.x', state: 'playing', attributes: {} });
+  const out2 = parseMediaPlayerState({ entity_id: 'media_player.x', state: 'paused', attributes: {} });
+  assert.equal(out1.on, true);
+  assert.equal(out2.on, true);
+});
+
+test('isTracked: lights and scenes always tracked', () => {
+  assert.equal(isTracked('light.foo', new Set()), true);
+  assert.equal(isTracked('scene.bar', new Set()), true);
+});
+
+test('isTracked: media_player tracked only when in set', () => {
+  const set = new Set(['media_player.da_tele_2']);
+  assert.equal(isTracked('media_player.da_tele_2', set), true);
+  assert.equal(isTracked('media_player.other', set), false);
+  assert.equal(isTracked('media_player.other', new Set()), false);
+});
+
+test('isTracked: other domains never tracked', () => {
+  assert.equal(isTracked('switch.kitchen', new Set(['switch.kitchen'])), false);
+  assert.equal(isTracked('', new Set()), false);
+  assert.equal(isTracked(undefined, new Set()), false);
 });

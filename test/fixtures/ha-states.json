@@ -68,5 +68,32 @@
     "entity_id": "sensor.living_room_temp",
     "state": "21.5",
     "attributes": { "friendly_name": "Living Room Temperature" }
+  },
+  {
+    "entity_id": "media_player.da_tele_2",
+    "state": "on",
+    "attributes": {
+      "friendly_name": "Living Room TV",
+      "source": "Plex",
+      "source_list": ["Plex", "YouTube", "Home"],
+      "volume_level": 0.42,
+      "is_volume_muted": false
+    }
+  },
+  {
+    "entity_id": "media_player.vizio_tv_2545_television",
+    "state": "on",
+    "attributes": {
+      "friendly_name": "Vizio TV",
+      "source": "scenescapes",
+      "source_list": ["scenescapes", "win-pc", "Nintendo Switch"],
+      "volume_level": 0.30,
+      "is_volume_muted": true
+    }
+  },
+  {
+    "entity_id": "media_player.tv_off",
+    "state": "off",
+    "attributes": { "friendly_name": "Bedroom TV" }
   }
 ]
