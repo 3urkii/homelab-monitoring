@@ -210,6 +210,16 @@ function main() {
             gateway: config.network.gateway || null,
           }
         : null,
+      tv: config.tv
+        ? {
+            available: true,
+            shortcuts: config.tv.shortcuts.map((s) => ({
+              id: s.id,
+              label: s.label,
+              icon: s.icon || null,
+            })),
+          }
+        : null,
     });
   });
 
@@ -486,6 +496,15 @@ function main() {
         res.json({ ok: true });
       } catch (err) {
         res.status(502).json({ error: err.message });
+      }
+    });
+
+    app.get('/api/tv/stream', (_req, res) => {
+      tvBroker.addClient(res);
+      if (haClient.isConnected()) {
+        res.write(`event: snapshot\ndata: ${JSON.stringify(buildTvSnapshot(config.tv, haClient))}\n\n`);
+      } else {
+        res.write(`event: offline\ndata: ${JSON.stringify({ connected: false })}\n\n`);
       }
     });
   }
