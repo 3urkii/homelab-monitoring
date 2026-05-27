@@ -7,6 +7,7 @@ const { Storage, METRIC_COLUMNS } = require('./lib/storage.js');
 const proxmox = require('./lib/proxmox.js');
 const nodeExporter = require('./lib/node_exporter.js');
 const { HAClient, pctToBrightness } = require('./lib/home_assistant.js');
+const { trackedEntitiesFromTv, resolveShortcut, buildTvSnapshot } = require('./lib/tv.js');
 const { SseBroker } = require('./lib/sse_broker.js');
 
 const ROLLUP_INTERVAL_MS = 5 * 60 * 1000; // every 5 minutes
@@ -124,6 +125,11 @@ function validateConfig(cfg) {
       }
     }
   }
+  if (cfg.tv !== undefined) {
+    const { validateTvConfig } = require('./lib/tv.js');
+    const tvErrors = validateTvConfig(cfg.tv, !!cfg.homeAssistant);
+    for (const e of tvErrors) errors.push(e);
+  }
   if (errors.length) {
     throw new Error('config.js validation failed:\n  - ' + errors.join('\n  - '));
   }
@@ -173,12 +179,21 @@ function main() {
 
   let haClient = null;
   let haBroker = null;
+  let tvBroker = null;
   if (config.homeAssistant) {
-    haClient = new HAClient(config.homeAssistant);
+    const trackedMediaPlayers = trackedEntitiesFromTv(config.tv);
+    haClient = new HAClient({ ...config.homeAssistant, trackedMediaPlayers });
     haBroker = new SseBroker();
     haClient.on('snapshot', (snap) => haBroker.broadcast('snapshot', snap));
     haClient.on('state', (evt) => haBroker.broadcast('state', evt));
     haClient.on('disconnect', () => haBroker.broadcast('offline', { connected: false }));
+    if (config.tv) {
+      tvBroker = new SseBroker();
+      const broadcastTv = () => tvBroker.broadcast('snapshot', buildTvSnapshot(config.tv, haClient));
+      haClient.on('media-state', broadcastTv);
+      haClient.on('snapshot', broadcastTv);
+      haClient.on('disconnect', () => tvBroker.broadcast('offline', { connected: false }));
+    }
     haClient.start();
   }
 

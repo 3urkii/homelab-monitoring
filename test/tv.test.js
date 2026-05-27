@@ -117,3 +117,10 @@ test('buildTvSnapshot: connected but state cache empty -> nulls', () => {
   assert.equal(snap.power, null);
   assert.equal(snap.volume, null);
 });
+
+test('validateTvConfig: missing required fields yields specific errors', () => {
+  const errs = validateTvConfig({}, true);
+  assert.ok(errs.some((e) => /powerEntity/.test(e)));
+  assert.ok(errs.some((e) => /volumeEntity/.test(e)));
+  assert.ok(errs.some((e) => /shortcuts must be a non-empty/.test(e)));
+});
