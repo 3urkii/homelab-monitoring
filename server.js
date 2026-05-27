@@ -423,6 +423,71 @@ function main() {
         res.status(502).json({ error: err.message });
       }
     });
+
+    app.post('/api/tv/volume', async (req, res) => {
+      if (!haClient.isConnected()) {
+        return res.status(503).json({ error: 'home assistant offline' });
+      }
+      const body = req.body || {};
+      const allowed = new Set(['action']);
+      for (const k of Object.keys(body)) {
+        if (!allowed.has(k)) return res.status(400).json({ error: `unknown field: ${k}` });
+      }
+      const action = body.action;
+      if (!['up', 'down', 'mute'].includes(action)) {
+        return res.status(400).json({ error: 'action must be up|down|mute' });
+      }
+      try {
+        if (action === 'up') {
+          await haClient.callService('media_player', 'volume_up', {
+            entity_id: config.tv.volumeEntity,
+          });
+        } else if (action === 'down') {
+          await haClient.callService('media_player', 'volume_down', {
+            entity_id: config.tv.volumeEntity,
+          });
+        } else {
+          const cur = haClient.getMediaPlayerState(config.tv.volumeEntity);
+          const target = !(cur?.is_volume_muted ?? false);
+          await haClient.callService('media_player', 'volume_mute', {
+            entity_id: config.tv.volumeEntity,
+            is_volume_muted: target,
+          });
+        }
+        res.json({ ok: true });
+      } catch (err) {
+        res.status(502).json({ error: err.message });
+      }
+    });
+
+    app.post('/api/tv/source', async (req, res) => {
+      if (!haClient.isConnected()) {
+        return res.status(503).json({ error: 'home assistant offline' });
+      }
+      const body = req.body || {};
+      const allowed = new Set(['id']);
+      for (const k of Object.keys(body)) {
+        if (!allowed.has(k)) return res.status(400).json({ error: `unknown field: ${k}` });
+      }
+      if (typeof body.id !== 'string' || !body.id) {
+        return res.status(400).json({ error: 'id must be a non-empty string' });
+      }
+      let resolved;
+      try {
+        resolved = resolveShortcut(config.tv.shortcuts, body.id);
+      } catch (err) {
+        return res.status(400).json({ error: err.message });
+      }
+      try {
+        await haClient.callService('media_player', 'select_source', {
+          entity_id: resolved.entity,
+          source: resolved.source,
+        });
+        res.json({ ok: true });
+      } catch (err) {
+        res.status(502).json({ error: err.message });
+      }
+    });
   }
 
   if (config.plan) {
