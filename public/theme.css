@@ -764,11 +764,12 @@ html:has(.tv-remote-sheet[open]) { overflow: hidden; }
 .tv-vol-btn[aria-pressed="true"] { color: var(--pink); border-color: var(--pink); }
 .tv-vol-btn[aria-busy="true"] { opacity: 0.6; }
 .tv-vol-btn:disabled { opacity: 0.4; cursor: not-allowed; }
-.tv-vol-mute::before {
-  content: "🔇";
-  font-size: 1rem;
-}
-.tv-vol-mute[aria-pressed="false"]::before { content: "🔊"; }
+.tv-vol-mute .tv-mute-on,
+.tv-vol-mute .tv-mute-off { display: none; width: 20px; height: 20px; }
+.tv-vol-mute .tv-mute-on img,
+.tv-vol-mute .tv-mute-off img { width: 100%; height: 100%; display: block; }
+.tv-vol-mute[aria-pressed="false"] .tv-mute-on { display: inline-flex; }
+.tv-vol-mute[aria-pressed="true"] .tv-mute-off { display: inline-flex; }
 
 .tv-shortcut-grid {
   display: grid;
