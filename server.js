@@ -7,7 +7,7 @@ const { Storage, METRIC_COLUMNS } = require('./lib/storage.js');
 const proxmox = require('./lib/proxmox.js');
 const nodeExporter = require('./lib/node_exporter.js');
 const { HAClient, pctToBrightness } = require('./lib/home_assistant.js');
-const { trackedEntitiesFromTv, resolveShortcut, buildTvSnapshot } = require('./lib/tv.js');
+const { validateTvConfig, trackedEntitiesFromTv, resolveShortcut, buildTvSnapshot } = require('./lib/tv.js');
 const { SseBroker } = require('./lib/sse_broker.js');
 
 const ROLLUP_INTERVAL_MS = 5 * 60 * 1000; // every 5 minutes
@@ -126,7 +126,6 @@ function validateConfig(cfg) {
     }
   }
   if (cfg.tv !== undefined) {
-    const { validateTvConfig } = require('./lib/tv.js');
     const tvErrors = validateTvConfig(cfg.tv, !!cfg.homeAssistant);
     for (const e of tvErrors) errors.push(e);
   }
