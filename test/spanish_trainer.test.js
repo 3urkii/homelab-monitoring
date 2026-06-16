@@ -2,6 +2,8 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const {
   validateTrainerConfig,
+  buildSystemPrompt,
+  TRAINER_SCHEMA,
 } = require('../lib/spanish_trainer.js');
 
 const good = { ollamaUrl: 'http://10.0.0.5:11434', model: 'llama3.1' };
@@ -26,4 +28,24 @@ test('validateTrainerConfig: bad optional types', () => {
   assert.ok(errs.some((e) => /systemPrompt/.test(e)));
   assert.ok(errs.some((e) => /voice/.test(e)));
   assert.ok(errs.some((e) => /temperature/.test(e)));
+});
+
+test('buildSystemPrompt: default mentions level + JSON contract', () => {
+  const p = buildSystemPrompt();
+  assert.match(p, /B1/);
+  assert.match(p, /JSON/);
+  assert.match(p, /reply/);
+  assert.match(p, /correction/);
+});
+test('buildSystemPrompt: override returned verbatim', () => {
+  assert.equal(buildSystemPrompt({ systemPrompt: 'custom prompt' }), 'custom prompt');
+});
+test('buildSystemPrompt: blank override falls back to default', () => {
+  assert.equal(buildSystemPrompt({ systemPrompt: '   ' }), buildSystemPrompt());
+});
+test('TRAINER_SCHEMA: requires reply, has three string props', () => {
+  assert.deepEqual(TRAINER_SCHEMA.required, ['reply']);
+  assert.equal(TRAINER_SCHEMA.properties.reply.type, 'string');
+  assert.equal(TRAINER_SCHEMA.properties.correction.type, 'string');
+  assert.equal(TRAINER_SCHEMA.properties.translation.type, 'string');
 });
