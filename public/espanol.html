@@ -1,0 +1,557 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>español — burkii.home</title>
+<link rel="icon" href="/favicon.ico">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="burkii.home">
+<meta name="theme-color" content="#282a36">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Rajdhani:wght@500;700&display=swap" rel="stylesheet">
+<script>(function(){try{var t=localStorage.getItem('homelab.theme');if(!t||t==='auto'){t=(window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches)?'dracula':'catppuccin-latte';}if(t&&t!=='dracula')document.documentElement.setAttribute('data-theme',t);}catch(e){}}());</script>
+<link rel="stylesheet" href="/theme.css">
+<style>
+html, body { height: 100%; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: Rajdhani, "JetBrains Mono", monospace;
+  display: flex; flex-direction: column;
+  min-height: 100vh;
+}
+
+main {
+  flex: 1;
+  width: 100%;
+  max-width: 880px;
+  margin: 0 auto;
+  padding: 1.5rem 1.5rem 0;
+  display: flex; flex-direction: column;
+  min-height: 0;
+}
+
+.transcript {
+  flex: 1;
+  overflow-y: auto;
+  padding-bottom: 1rem;
+  display: flex; flex-direction: column; gap: 1rem;
+  scroll-behavior: smooth;
+}
+
+.empty-state {
+  margin: auto 0;
+  padding: 2rem 0;
+  text-align: center;
+  color: var(--comment);
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.85rem;
+  display: flex; flex-direction: column; gap: 0.75rem;
+}
+.empty-state .heading {
+  font-family: Rajdhani, monospace;
+  font-size: 1.4rem; font-weight: 500;
+  color: var(--fg);
+  letter-spacing: 0.01em;
+}
+.empty-state .heading .accent { color: var(--cyan); }
+.empty-state .examples {
+  display: flex; flex-direction: column; gap: 0.4rem;
+  max-width: 480px;
+  margin: 0.5rem auto 0;
+}
+.empty-state .example {
+  text-align: left;
+  background: var(--surface);
+  border: 1px solid var(--current-line);
+  border-radius: 4px;
+  padding: 0.55rem 0.85rem;
+  color: var(--fg);
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.78rem;
+  cursor: pointer;
+  transition: border-color 160ms var(--ease-out), color 160ms var(--ease-out);
+}
+.empty-state .example::before { content: "$ "; color: var(--green); }
+@media (hover: hover) and (pointer: fine) {
+  .empty-state .example:hover { border-color: var(--cyan); color: var(--cyan); }
+}
+
+.msg {
+  display: flex; flex-direction: column;
+  max-width: 85%;
+  animation: msgIn 220ms var(--ease-out) both;
+}
+@keyframes msgIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.msg-meta {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.65rem; text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--comment);
+  margin-bottom: 0.3rem;
+}
+.msg-bubble {
+  padding: 0.7rem 1rem;
+  border-radius: 6px;
+  border: 1px solid var(--current-line);
+  background: var(--surface);
+  font-size: 0.95rem;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+.msg.user { align-self: flex-end; align-items: flex-end; }
+.msg.user .msg-meta { color: var(--purple); }
+.msg.user .msg-bubble {
+  background: rgba(var(--purple-rgb), 0.10);
+  border-color: rgba(var(--purple-rgb), 0.35);
+}
+.msg.assistant .msg-meta { color: var(--cyan); }
+.msg.assistant .msg-bubble {
+  border-color: rgba(var(--cyan-rgb), 0.25);
+}
+.msg.assistant.action .msg-bubble {
+  border-color: rgba(var(--green-rgb), 0.35);
+  background: rgba(var(--green-rgb), 0.06);
+}
+.msg.assistant.error .msg-meta { color: var(--red); }
+.msg.assistant.error .msg-bubble {
+  border-color: rgba(var(--red-rgb), 0.35);
+  background: rgba(var(--red-rgb), 0.06);
+  color: var(--red);
+}
+.msg-tag {
+  display: inline-block;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.6rem;
+  text-transform: uppercase; letter-spacing: 0.1em;
+  margin-left: 0.5ch;
+  padding: 0 0.45ch;
+  border-radius: 2px;
+  background: rgba(var(--green-rgb), 0.15);
+  color: var(--green);
+}
+
+.typing { display: inline-flex; gap: 0.25rem; padding: 0.2rem 0; }
+.typing span {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--comment);
+  animation: typing 1.2s ease-in-out infinite;
+}
+.typing span:nth-child(2) { animation-delay: 0.15s; }
+.typing span:nth-child(3) { animation-delay: 0.3s; }
+@keyframes typing {
+  0%,60%,100% { opacity: 0.3; transform: translateY(0); }
+  30% { opacity: 1; transform: translateY(-2px); }
+}
+
+.composer {
+  position: sticky;
+  bottom: 0;
+  padding: 0.75rem 0 1rem;
+  background: linear-gradient(180deg, transparent 0%, var(--bg) 30%);
+}
+.composer-inner {
+  display: flex; gap: 0.5rem;
+  background: var(--surface);
+  border: 1px solid var(--current-line);
+  border-radius: 6px;
+  padding: 0.4rem 0.5rem 0.4rem 0.85rem;
+  align-items: flex-end;
+  transition: border-color 160ms var(--ease-out);
+}
+.composer-inner:focus-within {
+  border-color: var(--cyan);
+}
+.composer .prompt {
+  font-family: "JetBrains Mono", monospace;
+  color: var(--green);
+  padding: 0.55rem 0;
+  font-size: 0.95rem;
+  user-select: none;
+}
+.composer textarea {
+  flex: 1;
+  background: transparent;
+  border: 0;
+  resize: none;
+  color: var(--fg);
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.95rem;
+  line-height: 1.4;
+  padding: 0.55rem 0;
+  max-height: 180px;
+  outline: none;
+}
+.composer textarea::placeholder { color: var(--comment); }
+.composer button {
+  background: transparent;
+  color: var(--cyan);
+  border: 1px solid rgba(var(--cyan-rgb), 0.35);
+  border-radius: 4px;
+  padding: 0.45rem 0.85rem;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+  transition: background 160ms var(--ease-out), color 160ms var(--ease-out), border-color 160ms var(--ease-out);
+  align-self: stretch;
+}
+.composer button:hover:not(:disabled) {
+  background: rgba(var(--cyan-rgb), 0.10);
+}
+.composer button:disabled {
+  color: var(--comment);
+  border-color: var(--current-line);
+  cursor: not-allowed;
+}
+.composer-foot {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-top: 0.4rem;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.65rem;
+  color: var(--comment);
+  letter-spacing: 0.04em;
+}
+.composer-foot .reset {
+  background: none; border: none;
+  color: var(--comment);
+  font-family: inherit; font-size: inherit;
+  cursor: pointer;
+  text-transform: uppercase; letter-spacing: 0.08em;
+}
+.composer-foot .reset:hover { color: var(--pink); }
+.composer-foot .conv-id { font-family: "JetBrains Mono", monospace; }
+
+.tts-btn {
+  margin-left: 0.5ch;
+  vertical-align: middle;
+  display: inline-flex;
+  background: transparent;
+  border: 0;
+  padding: 0.1rem;
+  color: var(--cyan);
+  cursor: pointer;
+  opacity: 0.7;
+  transition: opacity 160ms var(--ease-out);
+}
+.tts-btn:hover { opacity: 1; }
+.tts-btn svg { width: 16px; height: 16px; display: block; }
+.msg-translation {
+  margin-top: 0.35rem;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.72rem;
+  color: var(--comment);
+  padding-left: 0.2rem;
+}
+.msg-correction {
+  margin-top: 0.35rem;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.74rem;
+  line-height: 1.4;
+  color: var(--yellow);
+  border-left: 2px solid rgba(var(--yellow-rgb), 0.5);
+  background: rgba(var(--yellow-rgb), 0.07);
+  padding: 0.3rem 0.6rem;
+  border-radius: 0 4px 4px 0;
+}
+.autospeak { display: inline-flex; align-items: center; gap: 0.4ch; cursor: pointer; }
+
+@media (max-width: 520px) {
+  main { padding: 1rem 1rem 0; }
+  .msg { max-width: 92%; }
+  .msg-bubble { font-size: 0.9rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .msg, .typing span, .status-chip[data-status="working"] .dot { animation: none; }
+}
+</style>
+<script src="/theme.js" defer></script>
+<script src="/weather.js" defer></script>
+</head>
+<body>
+<div class="page-chrome">
+<header class="page-header page-header--sub">
+  <a class="back-btn" href="/" aria-label="back to dashboard">&larr;</a>
+  <span class="brand brand--compact">
+    <span class="brand-mark">burkii</span><span class="brand-sub">/español</span>
+  </span>
+  <div class="header-chrome">
+    <button class="weather-chip" id="weatherChip" type="button" aria-haspopup="dialog" aria-expanded="false" aria-controls="weatherPanel" hidden>
+      <span class="w-icon" id="weatherChipIcon"></span>
+      <span class="w-temp" id="weatherChipTemp">--°</span>
+      <span class="w-cond" id="weatherChipCond">…</span>
+    </button>
+    <div class="clock"><span class="prompt">$</span><span data-clock-h>--</span><span class="colon">:</span><span data-clock-m>--</span></div>
+    <div class="weather-panel" id="weatherPanel" role="dialog" aria-label="weather details" hidden>
+      <div class="w-now">
+        <div class="w-now-icon" id="weatherPanelIcon"></div>
+        <div class="w-now-meta">
+          <div><span class="w-now-temp" id="weatherPanelTemp">--°</span></div>
+          <div class="w-now-cond" id="weatherPanelCond">—</div>
+          <div class="w-now-label" id="weatherPanelLabel">—</div>
+          <div class="w-now-feels">feels like <strong id="weatherPanelFeels">--°</strong></div>
+        </div>
+      </div>
+      <div class="w-stats">
+        <div class="w-stat"><span>humidity</span><strong id="weatherPanelHumidity">--%</strong></div>
+        <div class="w-stat"><span>wind</span><strong id="weatherPanelWind">-- km/h</strong></div>
+        <div class="w-stat"><span>sunrise</span><strong id="weatherPanelSunrise">--:--</strong></div>
+        <div class="w-stat"><span>sunset</span><strong id="weatherPanelSunset">--:--</strong></div>
+      </div>
+      <div class="w-forecast-title">7-day forecast</div>
+      <div class="w-forecast" id="weatherForecast"></div>
+      <div class="w-stale" id="weatherStale" hidden>cached — last fetch failed</div>
+    </div>
+  </div>
+</header>
+<div class="page-subbar">
+  <span>práctica · B1–B2</span>
+</div>
+</div>
+<main>
+  <div class="transcript" id="transcript">
+    <div class="empty-state" id="emptyState">
+      <div class="heading">entrenador de <span class="accent">español</span></div>
+      <div>conversación · nivel B1–B2</div>
+      <div class="examples">
+        <button class="example" data-example="practiquemos pedir comida en un restaurante">practiquemos pedir comida en un restaurante</button>
+        <button class="example" data-example="corrígeme cuando me equivoque">corrígeme cuando me equivoque</button>
+        <button class="example" data-example="¿cómo se dice 'I am looking forward to it'?">¿cómo se dice "I am looking forward to it"?</button>
+      </div>
+    </div>
+  </div>
+  <form class="composer" id="composer">
+    <div class="composer-inner">
+      <span class="prompt">$</span>
+      <textarea id="input" rows="1" lang="es" placeholder="escribe o dicta en español…" autocomplete="off" spellcheck="true"></textarea>
+      <button type="submit" id="sendBtn">send</button>
+    </div>
+    <div class="composer-foot">
+      <button type="button" class="reset" id="resetBtn">reiniciar conversación</button>
+      <label class="autospeak"><input type="checkbox" id="autoSpeak"> leer en voz alta</label>
+    </div>
+  </form>
+</main>
+<script>
+const transcriptEl = document.getElementById('transcript');
+const emptyStateEl = document.getElementById('emptyState');
+const inputEl = document.getElementById('input');
+const sendBtn = document.getElementById('sendBtn');
+const resetBtn = document.getElementById('resetBtn');
+const autoSpeakEl = document.getElementById('autoSpeak');
+const composer = document.getElementById('composer');
+
+let messages = [];        // running transcript: {role, content}
+let inFlight = false;
+let voiceLang = 'es-ES';
+let esVoice = null;
+
+fetch('/api/espanol/config')
+  .then((r) => (r.ok ? r.json() : null))
+  .then((cfg) => { if (cfg && cfg.voice) voiceLang = cfg.voice; })
+  .catch(() => {});
+
+function pickVoice() {
+  const voices = window.speechSynthesis ? speechSynthesis.getVoices() : [];
+  const base = voiceLang.slice(0, 2).toLowerCase();
+  esVoice = voices.find((v) => v.lang && v.lang.toLowerCase().startsWith(base)) || null;
+}
+if (window.speechSynthesis) {
+  pickVoice();
+  speechSynthesis.onvoiceschanged = pickVoice;
+}
+
+function speak(text) {
+  if (!window.speechSynthesis || !text) return;
+  speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(text);
+  u.lang = voiceLang;
+  if (esVoice) u.voice = esVoice;
+  speechSynthesis.speak(u);
+}
+
+const SPEAKER_SVG = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3a4.5 4.5 0 00-2.5-4v8a4.5 4.5 0 002.5-4zm2.5 0a7 7 0 01-2.5 5.36l-1.42-1.42A5 5 0 0017 12a5 5 0 00-1.92-3.94l1.42-1.42A7 7 0 0119 12z"/></svg>';
+
+function hideEmpty() {
+  if (emptyStateEl && !emptyStateEl.hidden) emptyStateEl.hidden = true;
+}
+
+function appendUser(text) {
+  hideEmpty();
+  const wrap = document.createElement('div');
+  wrap.className = 'msg user';
+  const meta = document.createElement('div');
+  meta.className = 'msg-meta';
+  meta.textContent = 'tú';
+  const bubble = document.createElement('div');
+  bubble.className = 'msg-bubble';
+  bubble.textContent = text;
+  wrap.appendChild(meta);
+  wrap.appendChild(bubble);
+  transcriptEl.appendChild(wrap);
+  transcriptEl.scrollTop = transcriptEl.scrollHeight;
+}
+
+function appendAssistant({ reply, correction, translation }) {
+  hideEmpty();
+  const replyText = (reply && reply.trim()) || '(sin respuesta)';
+
+  const wrap = document.createElement('div');
+  wrap.className = 'msg assistant';
+
+  const meta = document.createElement('div');
+  meta.className = 'msg-meta';
+  meta.textContent = 'tutor';
+
+  const bubble = document.createElement('div');
+  bubble.className = 'msg-bubble';
+  const span = document.createElement('span');
+  span.textContent = replyText;
+  bubble.appendChild(span);
+
+  const tts = document.createElement('button');
+  tts.type = 'button';
+  tts.className = 'tts-btn';
+  tts.setAttribute('aria-label', 'escuchar');
+  tts.innerHTML = SPEAKER_SVG;
+  tts.addEventListener('click', () => speak(replyText));
+  bubble.appendChild(tts);
+
+  wrap.appendChild(meta);
+  wrap.appendChild(bubble);
+
+  if (translation && translation.trim()) {
+    const tr = document.createElement('div');
+    tr.className = 'msg-translation';
+    tr.textContent = translation;
+    wrap.appendChild(tr);
+  }
+  if (correction && correction.trim()) {
+    const co = document.createElement('div');
+    co.className = 'msg-correction';
+    co.textContent = correction;
+    wrap.appendChild(co);
+  }
+
+  transcriptEl.appendChild(wrap);
+  transcriptEl.scrollTop = transcriptEl.scrollHeight;
+
+  if (autoSpeakEl && autoSpeakEl.checked) speak(replyText);
+}
+
+function appendError(text) {
+  hideEmpty();
+  const wrap = document.createElement('div');
+  wrap.className = 'msg assistant error';
+  const meta = document.createElement('div');
+  meta.className = 'msg-meta';
+  meta.textContent = 'tutor';
+  const bubble = document.createElement('div');
+  bubble.className = 'msg-bubble';
+  bubble.textContent = text;
+  wrap.appendChild(meta);
+  wrap.appendChild(bubble);
+  transcriptEl.appendChild(wrap);
+  transcriptEl.scrollTop = transcriptEl.scrollHeight;
+}
+
+function appendTyping() {
+  hideEmpty();
+  const wrap = document.createElement('div');
+  wrap.className = 'msg assistant';
+  const meta = document.createElement('div');
+  meta.className = 'msg-meta';
+  meta.textContent = 'tutor';
+  const bubble = document.createElement('div');
+  bubble.className = 'msg-bubble';
+  bubble.innerHTML = '<span class="typing"><span></span><span></span><span></span></span>';
+  wrap.appendChild(meta);
+  wrap.appendChild(bubble);
+  transcriptEl.appendChild(wrap);
+  transcriptEl.scrollTop = transcriptEl.scrollHeight;
+  return wrap;
+}
+
+function autosize() {
+  inputEl.style.height = 'auto';
+  inputEl.style.height = Math.min(inputEl.scrollHeight, 180) + 'px';
+}
+inputEl.addEventListener('input', autosize);
+
+inputEl.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    composer.requestSubmit();
+  }
+});
+
+document.querySelectorAll('.example').forEach((btn) => {
+  btn.addEventListener('click', () => {
+    inputEl.value = btn.dataset.example;
+    autosize();
+    inputEl.focus();
+  });
+});
+
+resetBtn.addEventListener('click', () => {
+  messages = [];
+  transcriptEl.querySelectorAll('.msg').forEach((n) => n.remove());
+  if (emptyStateEl) emptyStateEl.hidden = false;
+  if (window.speechSynthesis) speechSynthesis.cancel();
+});
+
+composer.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  if (inFlight) return;
+  const text = inputEl.value.trim();
+  if (!text) return;
+
+  appendUser(text);
+  messages.push({ role: 'user', content: text });
+  inputEl.value = '';
+  autosize();
+
+  inFlight = true;
+  sendBtn.disabled = true;
+  const typingNode = appendTyping();
+
+  try {
+    const res = await fetch('/api/espanol', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ messages }),
+    });
+    typingNode.remove();
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || `HTTP ${res.status}`);
+    }
+    const data = await res.json();
+    appendAssistant(data);
+    if (data.reply && data.reply.trim()) {
+      messages.push({ role: 'assistant', content: data.reply });
+    }
+  } catch (err) {
+    typingNode.remove();
+    appendError(err.message);
+  } finally {
+    inFlight = false;
+    sendBtn.disabled = false;
+    inputEl.focus();
+  }
+});
+
+inputEl.focus();
+</script>
+</body>
+</html>
