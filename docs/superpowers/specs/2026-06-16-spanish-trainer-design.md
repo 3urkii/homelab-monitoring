@@ -82,12 +82,12 @@ Default tutor prompt (constant) encodes: friendly Spanish conversation tutor for
 - Render: assistant `reply` bubble (Spanish). If `correction` non-empty, render as a subtle inset annotation (distinct muted style, e.g. `--comment`/`--yellow`), visually attached to the turn, **not** spoken. `translation` shown inline/under the reply when present.
 - TTS: speaker button on each assistant bubble → `speechSynthesis.speak(new SpeechSynthesisUtterance(reply))`, `utterance.lang = config voice (default "es-ES")`, voice picked from `getVoices()` matching `es`. Optional "auto-speak" toggle in composer foot (best-effort; iOS frequently requires the per-bubble tap, so the button is the reliable path). Cancel any in-flight utterance before speaking a new one.
 - Input: `<textarea lang="es">` + Spanish placeholder to nudge dictation; reuse autosize, Enter-to-send, reset.
-- `config.voice` reaches the client via `GET /api/espanol/config` → `{ voice }` (same small-GET pattern as `/api/chat/agent-info` and `/api/landing-config`); 503 when `spanishTrainer` absent. Client defaults to `es-ES` if unset. This endpoint doubles as the enablement probe for the `/chat` ES button (see below).
+- `config.voice` reaches the client via `GET /api/espanol/config` → `{ voice }` (same small-GET pattern as `/api/chat/agent-info` and `/api/landing-config`). The whole `if (config.spanishTrainer)` block is unmounted when absent (probe → 404), matching the `if (config.tv)` gating pattern. Client defaults to `es-ES` if unset. This endpoint doubles as the enablement probe for the `/chat` ES button (see below).
 
 ### /chat ES button (the only entry point)
 
 - Add a small "ES" button to the `/chat` header chrome (next to the clock/weather chip, or in the page-subbar) linking to `/espanol`. Lowercase/compact styling consistent with existing chips; reuses theme vars.
-- Gated by config: on load, `chat.html` probes `GET /api/espanol/config`; 200 → reveal the button (hidden by default), 503 → leave hidden. Mirrors how `tv` hides its chip when unconfigured. No landing-page affordance is added.
+- Gated by config: on load, `chat.html` probes `GET /api/espanol/config`; 200 → reveal the button (hidden by default), any non-2xx (404 when unconfigured) → leave hidden. Mirrors how `tv` hides its chip when unconfigured. No landing-page affordance is added.
 
 ## Data flow
 
