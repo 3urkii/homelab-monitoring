@@ -6,6 +6,7 @@ const {
   TRAINER_SCHEMA,
   parseTrainerReply,
   validateMessages,
+  OllamaClient,
 } = require('../lib/spanish_trainer.js');
 
 const good = { ollamaUrl: 'http://10.0.0.5:11434', model: 'llama3.1' };
@@ -96,4 +97,45 @@ test('validateMessages: trims to last 20', () => {
   assert.equal(out.ok, true);
   assert.equal(out.trimmed.length, 20);
   assert.equal(out.trimmed[0].content, 'm5');
+});
+
+test('OllamaClient.chat: posts correct body and returns content', async () => {
+  const orig = globalThis.fetch;
+  let captured = null;
+  globalThis.fetch = async (url, opts) => {
+    captured = { url, body: JSON.parse(opts.body) };
+    return { ok: true, json: async () => ({ message: { content: '{"reply":"hola"}' } }) };
+  };
+  try {
+    const client = new OllamaClient({ ollamaUrl: 'http://h:11434/', model: 'llama3.1', temperature: 0.5 });
+    const content = await client.chat([{ role: 'user', content: 'hi' }], { format: { type: 'object' } });
+    assert.equal(content, '{"reply":"hola"}');
+    assert.equal(captured.url, 'http://h:11434/api/chat');
+    assert.equal(captured.body.model, 'llama3.1');
+    assert.equal(captured.body.stream, false);
+    assert.equal(captured.body.options.temperature, 0.5);
+    assert.deepEqual(captured.body.format, { type: 'object' });
+  } finally {
+    globalThis.fetch = orig;
+  }
+});
+test('OllamaClient.chat: non-2xx throws with status + detail', async () => {
+  const orig = globalThis.fetch;
+  globalThis.fetch = async () => ({ ok: false, status: 500, text: async () => 'boom' });
+  try {
+    const client = new OllamaClient({ ollamaUrl: 'http://h:11434', model: 'm' });
+    await assert.rejects(() => client.chat([{ role: 'user', content: 'x' }]), /Ollama HTTP 500: boom/);
+  } finally {
+    globalThis.fetch = orig;
+  }
+});
+test('OllamaClient.chat: missing message.content -> empty string', async () => {
+  const orig = globalThis.fetch;
+  globalThis.fetch = async () => ({ ok: true, json: async () => ({}) });
+  try {
+    const client = new OllamaClient({ ollamaUrl: 'http://h:11434', model: 'm' });
+    assert.equal(await client.chat([{ role: 'user', content: 'x' }]), '');
+  } finally {
+    globalThis.fetch = orig;
+  }
 });
