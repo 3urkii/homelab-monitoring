@@ -4,6 +4,7 @@ const {
   validateTrainerConfig,
   buildSystemPrompt,
   TRAINER_SCHEMA,
+  parseTrainerReply,
 } = require('../lib/spanish_trainer.js');
 
 const good = { ollamaUrl: 'http://10.0.0.5:11434', model: 'llama3.1' };
@@ -48,4 +49,25 @@ test('TRAINER_SCHEMA: requires reply, has three string props', () => {
   assert.equal(TRAINER_SCHEMA.properties.reply.type, 'string');
   assert.equal(TRAINER_SCHEMA.properties.correction.type, 'string');
   assert.equal(TRAINER_SCHEMA.properties.translation.type, 'string');
+});
+
+test('parseTrainerReply: full valid JSON', () => {
+  const out = parseTrainerReply('{"reply":"Hola","correction":"di hola","translation":"hi"}');
+  assert.deepEqual(out, { reply: 'Hola', correction: 'di hola', translation: 'hi' });
+});
+test('parseTrainerReply: missing fields coerced to empty string', () => {
+  const out = parseTrainerReply('{"reply":"Hola"}');
+  assert.deepEqual(out, { reply: 'Hola', correction: '', translation: '' });
+});
+test('parseTrainerReply: non-string fields coerced', () => {
+  const out = parseTrainerReply('{"reply":"Hola","correction":42,"translation":null}');
+  assert.deepEqual(out, { reply: 'Hola', correction: '', translation: '' });
+});
+test('parseTrainerReply: non-JSON falls back to raw reply', () => {
+  const out = parseTrainerReply('just plain text');
+  assert.deepEqual(out, { reply: 'just plain text', correction: '', translation: '' });
+});
+test('parseTrainerReply: JSON string primitive becomes reply', () => {
+  const out = parseTrainerReply('"hola"');
+  assert.deepEqual(out, { reply: 'hola', correction: '', translation: '' });
 });
