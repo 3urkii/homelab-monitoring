@@ -173,6 +173,28 @@ Restart the dashboard. A `lights` link appears in the header; `/lights` is also 
 
 Set `config.tv` (requires `homeAssistant`) to mount a TV-remote button in the top bar of `/` and `/lights`. The remote drives `media_player.*` entities — power, volume, mute, and a configurable 2×2 grid of one-tap source shortcuts (HDMI inputs, apps). See `config.example.js` for the schema.
 
+### Spanish trainer
+
+Set `config.spanishTrainer` to mount a B1–B2 Spanish conversation tutor at `/espanol`. An "ES" button appears on `/chat` only when the block is present; remove it to hide the page entirely.
+
+The tutor corrects mistakes, stays mostly in Spanish, and translates or explains on request. It talks directly to your Ollama server using a built-in tutor system prompt — completely independent of the nabu home-control conversation agent.
+
+**Prerequisite — Ollama reachable from the dashboard host**
+
+Ollama runs on its own machine; Home Assistant already reaches it across the network, which means it is normally already bound to all interfaces (`OLLAMA_HOST=0.0.0.0`). Point `ollamaUrl` at it (`http://<ollama-host>:11434`) and confirm the dashboard host has a route and firewall allowance to that port. `model` must match a model you have pulled on that Ollama instance.
+
+**Voice**
+
+Replies include a tap-to-hear speaker button that uses browser speech synthesis (iOS ships good Spanish voices). For speaking practice, add a Spanish keyboard on your iPhone and use the keyboard's dictation mic — iOS dictation language follows the active keyboard, not the page language.
+
+**Config** (see `config.example.js` for the commented template):
+
+- `ollamaUrl` — required; `http://<ollama-host>:11434`
+- `model` — required; a model pulled on that Ollama (e.g. `"llama3.1"`)
+- `systemPrompt` — optional; overrides the default tutor prompt
+- `voice` — optional TTS BCP-47 hint (default `"es-ES"`)
+- `temperature` — optional (default `0.7`)
+
 ## Known limitations
 
 - **QEMU VM disk usage** reports as `0 B / 0 B` unless `qemu-guest-agent` is installed inside the guest. LXC containers report correctly.

@@ -8,6 +8,7 @@ const proxmox = require('./lib/proxmox.js');
 const nodeExporter = require('./lib/node_exporter.js');
 const { HAClient, pctToBrightness } = require('./lib/home_assistant.js');
 const { validateTvConfig, trackedEntitiesFromTv, resolveShortcut, buildTvSnapshot } = require('./lib/tv.js');
+const { validateTrainerConfig, buildSystemPrompt, parseTrainerReply, validateMessages, TRAINER_SCHEMA, OllamaClient } = require('./lib/spanish_trainer.js');
 const { SseBroker } = require('./lib/sse_broker.js');
 
 const ROLLUP_INTERVAL_MS = 5 * 60 * 1000; // every 5 minutes
@@ -128,6 +129,10 @@ function validateConfig(cfg) {
   if (cfg.tv !== undefined) {
     const tvErrors = validateTvConfig(cfg.tv, !!cfg.homeAssistant);
     for (const e of tvErrors) errors.push(e);
+  }
+  if (cfg.spanishTrainer !== undefined) {
+    const trainerErrors = validateTrainerConfig(cfg.spanishTrainer);
+    for (const e of trainerErrors) errors.push(e);
   }
   if (errors.length) {
     throw new Error('config.js validation failed:\n  - ' + errors.join('\n  - '));
@@ -505,6 +510,35 @@ function main() {
         res.write(`event: snapshot\ndata: ${JSON.stringify(buildTvSnapshot(config.tv, haClient))}\n\n`);
       } else {
         res.write(`event: offline\ndata: ${JSON.stringify({ connected: false })}\n\n`);
+      }
+    });
+  }
+
+  if (config.spanishTrainer) {
+    const trainer = new OllamaClient({
+      ollamaUrl: config.spanishTrainer.ollamaUrl,
+      model: config.spanishTrainer.model,
+      temperature: config.spanishTrainer.temperature,
+    });
+
+    app.get('/espanol', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'espanol.html')));
+
+    app.get('/api/espanol/config', (_req, res) => {
+      res.json({ voice: config.spanishTrainer.voice || 'es-ES' });
+    });
+
+    app.post('/api/espanol', async (req, res) => {
+      const check = validateMessages((req.body || {}).messages);
+      if (!check.ok) return res.status(400).json({ error: check.error });
+      try {
+        const messages = [
+          { role: 'system', content: buildSystemPrompt(config.spanishTrainer) },
+          ...check.trimmed,
+        ];
+        const content = await trainer.chat(messages, { format: TRAINER_SCHEMA });
+        res.json(parseTrainerReply(content));
+      } catch (err) {
+        res.status(502).json({ error: err.message });
       }
     });
   }

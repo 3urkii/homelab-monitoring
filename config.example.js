@@ -75,6 +75,24 @@ module.exports = {
   //   ],
   // },
 
+  // Spanish trainer — adds an "ES" button to /chat linking to /espanol, a B1–B2
+  // Spanish conversation tutor. Talks directly to your Ollama server (the same one
+  // Home Assistant uses, on its own machine) with a tutor system prompt — independent
+  // of the nabu home-control agent. Voice: replies have a tap-to-hear speaker button
+  // (browser speech synthesis); for speaking input, use the iPhone keyboard's Spanish
+  // dictation (add a Spanish keyboard — iOS dictation follows the keyboard language).
+  // - ollamaUrl: http://<ollama-host>:11434 (must be reachable from the dashboard host)
+  // - model: a model pulled on that Ollama (e.g. "llama3.1")
+  // - systemPrompt: optional override of the default tutor prompt
+  // - voice: optional TTS BCP-47 hint (default "es-ES")
+  // - temperature: optional (default 0.7)
+  // spanishTrainer: {
+  //   ollamaUrl: "http://OLLAMA_HOST:11434",
+  //   model: "llama3.1",
+  //   // voice: "es-ES",
+  //   // temperature: 0.7,
+  // },
+
   // Weather widget on the landing page. Powered by Open-Meteo (no API key).
   // Omit this block to hide the weather chip entirely. Coords don't need to be
   // exact — the nearest grid cell is used. unit defaults to "celsius".
