@@ -231,6 +231,20 @@ main {
 .composer-foot .reset:hover { color: var(--pink); }
 .composer-foot .conv-id { font-family: "JetBrains Mono", monospace; }
 
+.es-btn {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: var(--cyan);
+  border: 1px solid rgba(var(--cyan-rgb), 0.35);
+  border-radius: 4px;
+  padding: 0.15rem 0.5rem;
+  text-decoration: none;
+  transition: background 160ms var(--ease-out), border-color 160ms var(--ease-out);
+}
+.es-btn:hover { background: rgba(var(--cyan-rgb), 0.10); }
+
 @media (max-width: 520px) {
   main { padding: 1rem 1rem 0; }
   .msg { max-width: 92%; }
@@ -282,6 +296,8 @@ main {
 </header>
 <div class="page-subbar">
   <div class="status-chip" id="statusChip" data-status="ready"><span class="dot"></span><span id="statusLabel">ready</span></div>
+  <span class="spacer"></span>
+  <a class="es-btn" id="esBtn" href="/espanol" title="entrenador de español" hidden>ES</a>
 </div>
 </div>
 <main>
@@ -455,6 +471,9 @@ composer.addEventListener('submit', async (e) => {
 });
 
 inputEl.focus();
+fetch('/api/espanol/config')
+  .then((r) => { if (r.ok) document.getElementById('esBtn').hidden = false; })
+  .catch(() => {});
 </script>
 </body>
 </html>
