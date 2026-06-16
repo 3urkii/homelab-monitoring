@@ -71,7 +71,7 @@ Default tutor prompt (constant) encodes: friendly Spanish conversation tutor for
 - `GET /espanol` → `res.sendFile(public/espanol.html)`.
 - `POST /api/espanol`:
   - 503 if `spanishTrainer` not configured.
-  - Body `{ messages }`: array of `{ role: 'user'|'assistant', content: string }`. Validate: array, each item shape, role in set, `content` non-empty string ≤ 4000 chars, total ≤ 20 messages (else trim to last 20). 400 on malformed.
+  - Body `{ messages }`: array of `{ role: 'user'|'assistant', content: string }`. Validate: array, each item shape, role in set, `content` non-empty string ≤ 2000 chars, total ≤ 20 messages (else trim to last 20). 400 on malformed. (Cap is 2000, not 4000, so the worst-case payload — 20×2000 ≈ 41kb — stays under the app-wide `express.json({ limit: '64kb' })`; a larger cap would 413 before validation.)
   - Compose `[{ role:'system', content: buildSystemPrompt(cfg) }, ...messages]`, call `ollama.chat(..., { format: TRAINER_SCHEMA })`, `parseTrainerReply`, respond `{ reply, correction, translation }`.
   - 502 on Ollama error (message surfaced to client).
 

@@ -93,9 +93,9 @@ test('validateMessages: empty content rejected', () => {
   assert.match(out.error, /content/);
 });
 test('validateMessages: over-long content rejected', () => {
-  const out = validateMessages([{ role: 'user', content: 'a'.repeat(4001) }]);
+  const out = validateMessages([{ role: 'user', content: 'a'.repeat(2001) }]);
   assert.equal(out.ok, false);
-  assert.match(out.error, /4000/);
+  assert.match(out.error, /2000/);
 });
 test('validateMessages: trims to last 20', () => {
   const msgs = Array.from({ length: 25 }, (_, i) => ({ role: 'user', content: `m${i}` }));
