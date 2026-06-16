@@ -5,6 +5,7 @@ const {
   buildSystemPrompt,
   TRAINER_SCHEMA,
   parseTrainerReply,
+  validateMessages,
 } = require('../lib/spanish_trainer.js');
 
 const good = { ollamaUrl: 'http://10.0.0.5:11434', model: 'llama3.1' };
@@ -70,4 +71,29 @@ test('parseTrainerReply: non-JSON falls back to raw reply', () => {
 test('parseTrainerReply: JSON string primitive becomes reply', () => {
   const out = parseTrainerReply('"hola"');
   assert.deepEqual(out, { reply: 'hola', correction: '', translation: '' });
+});
+
+test('validateMessages: valid passes through', () => {
+  const msgs = [{ role: 'user', content: 'hola' }];
+  assert.deepEqual(validateMessages(msgs), { ok: true, trimmed: msgs });
+});
+test('validateMessages: empty/non-array rejected', () => {
+  assert.equal(validateMessages([]).ok, false);
+  assert.equal(validateMessages(undefined).ok, false);
+});
+test('validateMessages: bad role rejected', () => {
+  assert.equal(validateMessages([{ role: 'system', content: 'x' }]).ok, false);
+});
+test('validateMessages: empty content rejected', () => {
+  assert.equal(validateMessages([{ role: 'user', content: '   ' }]).ok, false);
+});
+test('validateMessages: over-long content rejected', () => {
+  assert.equal(validateMessages([{ role: 'user', content: 'a'.repeat(4001) }]).ok, false);
+});
+test('validateMessages: trims to last 20', () => {
+  const msgs = Array.from({ length: 25 }, (_, i) => ({ role: 'user', content: `m${i}` }));
+  const out = validateMessages(msgs);
+  assert.equal(out.ok, true);
+  assert.equal(out.trimmed.length, 20);
+  assert.equal(out.trimmed[0].content, 'm5');
 });
