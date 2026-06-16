@@ -17,7 +17,7 @@ Decisions locked in brainstorming:
 
 ## Goals
 
-- New page `public/espanol.html` + `GET /espanol`, cloned from the `chat.html` shell (header, theme, weather chip, transcript/composer). Small link to it from landing.
+- New page `public/espanol.html` + `GET /espanol`, cloned from the `chat.html` shell (header, theme, weather chip, transcript/composer). Reached only via a small "ES" button on `/chat` — no landing tile.
 - `POST /api/espanol`: stateless tutor turn over Ollama, returning a structured `{reply, correction, translation}`.
 - Spoken replies (tap-to-hear speaker button per assistant bubble; optional best-effort auto-speak) and Spanish-friendly text/dictation input.
 - Match app vocabulary: JetBrains Mono + Rajdhani, dracula/catppuccin CSS vars, `--current-line` borders, `--ease-out` transitions, lowercase labels.
@@ -27,11 +27,12 @@ Decisions locked in brainstorming:
 
 - In-app push-to-talk + backend Whisper STT — documented fast-follow, not built now.
 - Click-a-word/sentence-to-hear, level-picker UI, persistent history / vocab SRS, streaming responses.
+- Landing-page tile/chip for the trainer — explicitly not wanted; entry point is the `/chat` "ES" button only.
 - Auth (dashboard ships open on LAN; inherits same trust as `/chat`).
 
 ## Prerequisites (operational)
 
-- Dashboard host can reach Ollama HTTP API (default port `11434`). HA reaches Ollama internally; the dashboard reaches it directly. If Ollama runs on a different host than the dashboard, bind it to the network (`OLLAMA_HOST=0.0.0.0`) and open the port.
+- Ollama runs on its own machine — separate from both HA and the dashboard. HA already reaches it cross-host today, so it is already network-bound (`OLLAMA_HOST=0.0.0.0`) and its port is open. The dashboard just needs `ollamaUrl` pointed at that machine (`http://<ollama-host>:11434`) and a network route/firewall allowing dashboard → Ollama.
 - `spanishTrainer.model` matches a model pulled on that Ollama.
 - iPhone: Spanish keyboard added — iOS dictation language follows the **keyboard**, not the field's `lang`. README must state this.
 
@@ -81,11 +82,12 @@ Default tutor prompt (constant) encodes: friendly Spanish conversation tutor for
 - Render: assistant `reply` bubble (Spanish). If `correction` non-empty, render as a subtle inset annotation (distinct muted style, e.g. `--comment`/`--yellow`), visually attached to the turn, **not** spoken. `translation` shown inline/under the reply when present.
 - TTS: speaker button on each assistant bubble → `speechSynthesis.speak(new SpeechSynthesisUtterance(reply))`, `utterance.lang = config voice (default "es-ES")`, voice picked from `getVoices()` matching `es`. Optional "auto-speak" toggle in composer foot (best-effort; iOS frequently requires the per-bubble tap, so the button is the reliable path). Cancel any in-flight utterance before speaking a new one.
 - Input: `<textarea lang="es">` + Spanish placeholder to nudge dictation; reuse autosize, Enter-to-send, reset.
-- `config.voice` reaches the client via `GET /api/espanol/config` → `{ voice }` (same small-GET pattern as `/api/chat/agent-info` and `/api/landing-config`). Client defaults to `es-ES` if unset or endpoint fails.
+- `config.voice` reaches the client via `GET /api/espanol/config` → `{ voice }` (same small-GET pattern as `/api/chat/agent-info` and `/api/landing-config`); 503 when `spanishTrainer` absent. Client defaults to `es-ES` if unset. This endpoint doubles as the enablement probe for the `/chat` ES button (see below).
 
-### Landing link
+### /chat ES button (the only entry point)
 
-- Add a link/affordance to `/espanol` on the landing page, shown only when `spanishTrainer` is configured (mirror how `tv` gates its chip). Lowercase label, existing styling.
+- Add a small "ES" button to the `/chat` header chrome (next to the clock/weather chip, or in the page-subbar) linking to `/espanol`. Lowercase/compact styling consistent with existing chips; reuses theme vars.
+- Gated by config: on load, `chat.html` probes `GET /api/espanol/config`; 200 → reveal the button (hidden by default), 503 → leave hidden. Mirrors how `tv` hides its chip when unconfigured. No landing-page affordance is added.
 
 ## Data flow
 
