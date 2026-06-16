@@ -354,10 +354,22 @@ if (window.speechSynthesis) {
   speechSynthesis.onvoiceschanged = pickVoice;
 }
 
+// Emoji/pictographs read aloud as their names ("smiling face"), so strip them
+// before TTS. Spanish letters, accents and ¿¡ punctuation are unaffected.
+function stripForSpeech(text) {
+  return String(text)
+    .replace(/[\u{1F1E6}-\u{1F1FF}]/gu, '')        // regional indicators (flags)
+    .replace(/\p{Extended_Pictographic}/gu, '')     // emoji & pictographs
+    .replace(/[\u{FE00}-\u{FE0F}\u{200D}]/gu, '')   // variation selectors + ZWJ
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+}
+
 function speak(text) {
-  if (!window.speechSynthesis || !text) return;
+  const clean = stripForSpeech(text);
+  if (!window.speechSynthesis || !clean) return;
   speechSynthesis.cancel();
-  const u = new SpeechSynthesisUtterance(text);
+  const u = new SpeechSynthesisUtterance(clean);
   u.lang = voiceLang;
   if (esVoice) u.voice = esVoice;
   speechSynthesis.speak(u);
