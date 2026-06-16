@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="es">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -117,28 +117,12 @@ main {
 .msg.assistant .msg-bubble {
   border-color: rgba(var(--cyan-rgb), 0.25);
 }
-.msg.assistant.action .msg-bubble {
-  border-color: rgba(var(--green-rgb), 0.35);
-  background: rgba(var(--green-rgb), 0.06);
-}
 .msg.assistant.error .msg-meta { color: var(--red); }
 .msg.assistant.error .msg-bubble {
   border-color: rgba(var(--red-rgb), 0.35);
   background: rgba(var(--red-rgb), 0.06);
   color: var(--red);
 }
-.msg-tag {
-  display: inline-block;
-  font-family: "JetBrains Mono", monospace;
-  font-size: 0.6rem;
-  text-transform: uppercase; letter-spacing: 0.1em;
-  margin-left: 0.5ch;
-  padding: 0 0.45ch;
-  border-radius: 2px;
-  background: rgba(var(--green-rgb), 0.15);
-  color: var(--green);
-}
-
 .typing { display: inline-flex; gap: 0.25rem; padding: 0.2rem 0; }
 .typing span {
   width: 6px; height: 6px; border-radius: 50%;
@@ -229,7 +213,6 @@ main {
   text-transform: uppercase; letter-spacing: 0.08em;
 }
 .composer-foot .reset:hover { color: var(--pink); }
-.composer-foot .conv-id { font-family: "JetBrains Mono", monospace; }
 
 .tts-btn {
   margin-left: 0.5ch;
@@ -358,7 +341,7 @@ let esVoice = null;
 
 fetch('/api/espanol/config')
   .then((r) => (r.ok ? r.json() : null))
-  .then((cfg) => { if (cfg && cfg.voice) voiceLang = cfg.voice; })
+  .then((cfg) => { if (cfg && cfg.voice) voiceLang = cfg.voice; if (window.speechSynthesis) pickVoice(); })
   .catch(() => {});
 
 function pickVoice() {
