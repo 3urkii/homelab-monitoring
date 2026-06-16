@@ -83,13 +83,19 @@ test('validateMessages: empty/non-array rejected', () => {
   assert.equal(validateMessages(undefined).ok, false);
 });
 test('validateMessages: bad role rejected', () => {
-  assert.equal(validateMessages([{ role: 'system', content: 'x' }]).ok, false);
+  const out = validateMessages([{ role: 'system', content: 'x' }]);
+  assert.equal(out.ok, false);
+  assert.match(out.error, /user\|assistant/);
 });
 test('validateMessages: empty content rejected', () => {
-  assert.equal(validateMessages([{ role: 'user', content: '   ' }]).ok, false);
+  const out = validateMessages([{ role: 'user', content: '   ' }]);
+  assert.equal(out.ok, false);
+  assert.match(out.error, /content/);
 });
 test('validateMessages: over-long content rejected', () => {
-  assert.equal(validateMessages([{ role: 'user', content: 'a'.repeat(4001) }]).ok, false);
+  const out = validateMessages([{ role: 'user', content: 'a'.repeat(4001) }]);
+  assert.equal(out.ok, false);
+  assert.match(out.error, /4000/);
 });
 test('validateMessages: trims to last 20', () => {
   const msgs = Array.from({ length: 25 }, (_, i) => ({ role: 'user', content: `m${i}` }));
@@ -138,4 +144,7 @@ test('OllamaClient.chat: missing message.content -> empty string', async () => {
   } finally {
     globalThis.fetch = orig;
   }
+});
+test('OllamaClient: rejects missing ollamaUrl', () => {
+  assert.throws(() => new OllamaClient({ model: 'm' }), /ollamaUrl/);
 });
