@@ -1,0 +1,29 @@
+[Unit]
+Description=Minecraft log agent (homelab dashboard)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+# Run as the user that owns the Minecraft server files so latest.log is readable.
+User=minecraft
+Group=minecraft
+ExecStart=/usr/bin/node /opt/mc-log-agent/mc-log-agent.js
+Restart=on-failure
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+Environment=MC_LOG_FILE=/opt/minecraft/logs/latest.log
+#Environment=MC_LOG_PORT=8127
+#Environment=MC_LOG_BIND=0.0.0.0
+#Environment=MC_LOG_MAX_LINES=2000
+
+# Hardening (the agent only reads the log file)
+NoNewPrivileges=true
+ProtectSystem=strict
+# read-only (not true) so a log path under /home still works
+ProtectHome=read-only
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

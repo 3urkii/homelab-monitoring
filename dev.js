@@ -4,6 +4,7 @@ const fs = require('node:fs');
 const { Poller } = require('./lib/poller.js');
 const { Storage, METRIC_COLUMNS } = require('./lib/storage.js');
 const { SseBroker } = require('./lib/sse_broker.js');
+const { checkCommand, isValidUsername, DEFAULT_COMMAND_ALLOWLIST } = require('./lib/minecraft.js');
 
 const RANGE_PRESETS = {
   '1h':  60 * 60 * 1000,
@@ -212,6 +213,99 @@ app.use('/api/plan', (req, res) => {
     ]});
   }
   res.status(404).json({ error: 'unknown Plan endpoint' });
+});
+
+// ── Minecraft admin mock (console / whitelist / logs) ──
+const mockWhitelist = ['xXDragonSlayerXx', 'CraftQueen', 'BlockMaster99', 'newbie_steve'];
+
+function mockRconResponse(cmd) {
+  const first = cmd.split(/\s+/, 1)[0].toLowerCase();
+  if (cmd.toLowerCase() === 'whitelist list') {
+    return `There are ${mockWhitelist.length} whitelisted player(s): ${mockWhitelist.join(', ')}`;
+  }
+  if (first === 'list') return 'There are 3 of a max of 20 players online: xXDragonSlayerXx, CraftQueen, newbie_steve';
+  if (first === 'tps') return 'TPS from last 1m, 5m, 15m: 19.98, 19.99, 20.0';
+  if (first === 'say' || first === 'msg' || first === 'tell') return '';
+  if (first === 'seed') return 'Seed: [-4218267558469834081]';
+  if (first === 'difficulty') return 'The difficulty is Normal';
+  return `(mock) executed: ${cmd}`;
+}
+
+app.get('/api/mc/config', (_req, res) => {
+  res.json({ console: true, whitelist: true, logs: true, allowlist: DEFAULT_COMMAND_ALLOWLIST });
+});
+
+app.post('/api/mc/command', express.json({ limit: '64kb' }), (req, res) => {
+  const check = checkCommand((req.body || {}).command, DEFAULT_COMMAND_ALLOWLIST);
+  if (!check.ok) return res.status(400).json({ error: check.error });
+  setTimeout(() => res.json({ command: check.command, response: mockRconResponse(check.command) }), 150);
+});
+
+app.get('/api/mc/whitelist', (_req, res) => res.json({ players: [...mockWhitelist] }));
+
+app.post('/api/mc/whitelist/add', express.json({ limit: '64kb' }), (req, res) => {
+  const name = (req.body || {}).name;
+  if (!isValidUsername(name)) return res.status(400).json({ error: 'name must match ^[A-Za-z0-9_]{3,16}$' });
+  const already = mockWhitelist.includes(name);
+  if (!already) mockWhitelist.push(name);
+  res.json({
+    ok: true,
+    result: already ? 'already' : 'added',
+    response: already ? 'Player is already whitelisted' : `Added ${name} to the whitelist`,
+    players: [...mockWhitelist],
+  });
+});
+
+app.post('/api/mc/whitelist/remove', express.json({ limit: '64kb' }), (req, res) => {
+  const name = (req.body || {}).name;
+  if (!isValidUsername(name)) return res.status(400).json({ error: 'name must match ^[A-Za-z0-9_]{3,16}$' });
+  const idx = mockWhitelist.indexOf(name);
+  if (idx >= 0) mockWhitelist.splice(idx, 1);
+  res.json({
+    ok: true,
+    result: idx >= 0 ? 'removed' : 'not_found',
+    response: idx >= 0 ? `Removed ${name} from the whitelist` : 'Player is not whitelisted',
+    players: [...mockWhitelist],
+  });
+});
+
+const MOCK_LOG_PLAYERS = ['xXDragonSlayerXx', 'CraftQueen', 'BlockMaster99', 'newbie_steve', 'RedstoneWiz'];
+let mockLogSeq = 0;
+
+function mockLogLine() {
+  const now = new Date();
+  const hh = String(now.getHours()).padStart(2, '0');
+  const mm = String(now.getMinutes()).padStart(2, '0');
+  const ss = String(now.getSeconds()).padStart(2, '0');
+  const p = MOCK_LOG_PLAYERS[mockLogSeq % MOCK_LOG_PLAYERS.length];
+  const templates = [
+    `[${hh}:${mm}:${ss}] [Server thread/INFO]: <${p}> anyone near spawn?`,
+    `[${hh}:${mm}:${ss}] [Server thread/INFO]: ${p} joined the game`,
+    `[${hh}:${mm}:${ss}] [Server thread/INFO]: ${p} left the game`,
+    `[${hh}:${mm}:${ss}] [Server thread/INFO]: ${p} has made the advancement [Hot Stuff]`,
+    `[${hh}:${mm}:${ss}] [Server thread/INFO]: Saving the game (this may take a moment!)`,
+    `[${hh}:${mm}:${ss}] [Server thread/WARN]: Can't keep up! Is the server overloaded? Running 2043ms or 40 ticks behind`,
+  ];
+  mockLogSeq++;
+  return templates[Math.floor(Math.random() * templates.length)];
+}
+
+const mockLogRing = Array.from({ length: 200 }, () => mockLogLine());
+const mcLogBroker = new SseBroker();
+setInterval(() => {
+  const line = mockLogLine();
+  mockLogRing.push(line);
+  if (mockLogRing.length > 2000) mockLogRing.shift();
+  mcLogBroker.broadcast('line', { ts: Date.now(), line });
+}, 1500 + Math.floor(Math.random() * 2500));
+
+app.get('/api/mc/logs/recent', (req, res) => {
+  const n = Math.max(1, Math.min(1000, Number(req.query.lines) || 200));
+  res.json({ file: '/opt/minecraft/logs/latest.log', lines: mockLogRing.slice(-n) });
+});
+
+app.get('/api/mc/logs/stream', (_req, res) => {
+  mcLogBroker.addClient(res);
 });
 
 // ── Page routes (clean URLs) ───────────────────────────

@@ -10,6 +10,8 @@ const { HAClient, pctToBrightness } = require('./lib/home_assistant.js');
 const { validateTvConfig, trackedEntitiesFromTv, resolveShortcut, buildTvSnapshot } = require('./lib/tv.js');
 const { validateTrainerConfig, buildSystemPrompt, parseTrainerReply, validateMessages, TRAINER_SCHEMA, OllamaClient } = require('./lib/spanish_trainer.js');
 const { SseBroker } = require('./lib/sse_broker.js');
+const { validateMinecraftConfig, checkCommand, isValidUsername, stripColorCodes, parseWhitelistList, classifyWhitelistResponse, DEFAULT_COMMAND_ALLOWLIST, McLogRelay } = require('./lib/minecraft.js');
+const { rconExec } = require('./lib/rcon.js');
 
 const ROLLUP_INTERVAL_MS = 5 * 60 * 1000; // every 5 minutes
 const RANGE_PRESETS = {
@@ -133,6 +135,10 @@ function validateConfig(cfg) {
   if (cfg.spanishTrainer !== undefined) {
     const trainerErrors = validateTrainerConfig(cfg.spanishTrainer);
     for (const e of trainerErrors) errors.push(e);
+  }
+  if (cfg.minecraft !== undefined) {
+    const mcErrors = validateMinecraftConfig(cfg.minecraft, !!cfg.plan);
+    for (const e of mcErrors) errors.push(e);
   }
   if (errors.length) {
     throw new Error('config.js validation failed:\n  - ' + errors.join('\n  - '));
@@ -565,6 +571,98 @@ function main() {
         res.status(502).json({ error: `Plan API: ${err.message}` });
       }
     });
+  }
+
+  if (config.minecraft) {
+    const mc = config.minecraft;
+    const allowlist = mc.commandAllowlist || DEFAULT_COMMAND_ALLOWLIST;
+
+    const rconErrorStatus = (err) =>
+      err.code === 'rcon_unreachable' || err.code === 'rcon_auth_failed' ? 503 : 502;
+    const rconErrorMessage = (err) => {
+      if (err.code === 'rcon_auth_failed') return 'rcon auth failed — check minecraft.rcon.password';
+      if (err.code === 'rcon_unreachable') return 'minecraft rcon unreachable — is the server up?';
+      return `rcon: ${err.message}`;
+    };
+
+    app.get('/api/mc/config', (_req, res) => {
+      res.json({ console: true, whitelist: true, logs: !!mc.logAgent, allowlist });
+    });
+
+    app.post('/api/mc/command', async (req, res) => {
+      const body = req.body || {};
+      const allowed = new Set(['command']);
+      for (const k of Object.keys(body)) {
+        if (!allowed.has(k)) return res.status(400).json({ error: `unknown field: ${k}` });
+      }
+      const check = checkCommand(body.command, allowlist);
+      if (!check.ok) return res.status(400).json({ error: check.error });
+      try {
+        const response = await rconExec(mc.rcon, check.command);
+        res.json({ command: check.command, response: stripColorCodes(response) });
+      } catch (err) {
+        res.status(rconErrorStatus(err)).json({ error: rconErrorMessage(err) });
+      }
+    });
+
+    async function fetchWhitelist() {
+      const response = await rconExec(mc.rcon, 'whitelist list');
+      return parseWhitelistList(response);
+    }
+
+    app.get('/api/mc/whitelist', async (_req, res) => {
+      try {
+        res.json({ players: await fetchWhitelist() });
+      } catch (err) {
+        res.status(rconErrorStatus(err)).json({ error: rconErrorMessage(err) });
+      }
+    });
+
+    for (const action of ['add', 'remove']) {
+      app.post(`/api/mc/whitelist/${action}`, async (req, res) => {
+        const body = req.body || {};
+        const allowed = new Set(['name']);
+        for (const k of Object.keys(body)) {
+          if (!allowed.has(k)) return res.status(400).json({ error: `unknown field: ${k}` });
+        }
+        if (!isValidUsername(body.name)) {
+          return res.status(400).json({ error: 'name must match ^[A-Za-z0-9_]{3,16}$' });
+        }
+        try {
+          const response = stripColorCodes(await rconExec(mc.rcon, `whitelist ${action} ${body.name}`));
+          const result = classifyWhitelistResponse(response);
+          const players = await fetchWhitelist();
+          res.json({ ok: true, result, response, players });
+        } catch (err) {
+          res.status(rconErrorStatus(err)).json({ error: rconErrorMessage(err) });
+        }
+      });
+    }
+
+    if (mc.logAgent) {
+      const agentUrl = mc.logAgent.url.replace(/\/$/, '');
+      const mcLogBroker = new SseBroker();
+      const mcLogRelay = new McLogRelay({ url: agentUrl, broker: mcLogBroker });
+      mcLogRelay.start();
+
+      app.get('/api/mc/logs/recent', async (req, res) => {
+        const lines = Math.max(1, Math.min(1000, Number(req.query.lines) || 200));
+        try {
+          const resp = await globalThis.fetch(`${agentUrl}/recent?lines=${lines}`, { signal: AbortSignal.timeout(5000) });
+          if (!resp.ok) return res.status(502).json({ error: `log agent HTTP ${resp.status}` });
+          res.json(await resp.json());
+        } catch (err) {
+          res.status(503).json({ error: `log agent unreachable: ${err.message}` });
+        }
+      });
+
+      app.get('/api/mc/logs/stream', (_req, res) => {
+        mcLogBroker.addClient(res);
+        if (!mcLogRelay.isConnected()) {
+          res.write(`event: offline\ndata: ${JSON.stringify({ connected: false })}\n\n`);
+        }
+      });
+    }
   }
 
   if (config.weather) {
