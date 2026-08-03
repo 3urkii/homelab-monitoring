@@ -111,6 +111,22 @@ module.exports = {
     guest: 'REPLACE_ME',     // guest name of the Minecraft VM/LXC
   },
 
+  // Minecraft admin — adds console / whitelist / live-log sections to the /plan page.
+  // Requires the `plan` block above. Enable RCON in server.properties first:
+  //   enable-rcon=true
+  //   rcon.port=25575
+  //   rcon.password=<long random string>
+  // logAgent is optional: run tools/mc-log-agent on the Minecraft host (see its README)
+  // to get the live-log section. Omit it to skip logs.
+  // commandAllowlist (optional) REPLACES the default allowed console first-words:
+  //   whitelist, list, say, msg, tell, kick, tps, seed, banlist, difficulty, time, weather, save-all
+  // Never add op, stop, ban, gamemode, or execute — see SECURITY.md.
+  // minecraft: {
+  //   rcon: { host: "REPLACE_ME", port: 25575, password: "REPLACE_ME" },
+  //   logAgent: { url: "http://REPLACE_ME:8127" },
+  //   // commandAllowlist: ["whitelist", "list", "say", "tps"],
+  // },
+
   // Network tile on the landing page — clickable card that deep-links to the
   // UniFi mobile app on iOS/Android, falling back to the controller URL on desktop.
   // Omit this block to hide the network tile entirely.

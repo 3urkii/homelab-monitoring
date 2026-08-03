@@ -195,6 +195,59 @@ Replies include a tap-to-hear speaker button that uses browser speech synthesis 
 - `voice` — optional TTS BCP-47 hint (default `"es-ES"`)
 - `temperature` — optional (default `0.7`)
 
+## Minecraft admin (console, whitelist, live logs)
+
+Set `config.minecraft` (requires the `plan` block) to add three admin sections
+to the `/plan` page: an allowlisted RCON console, a whitelist manager, and a
+live server-log tail. The RCON password stays server-side; the browser only
+ever talks to the dashboard.
+
+**1. Enable RCON on the Minecraft server**
+
+In the server's `server.properties`:
+
+```properties
+enable-rcon=true
+rcon.port=25575
+rcon.password=<long random string>
+```
+
+Restart the Minecraft server. Verify the dashboard host can reach the port:
+`nc -z <mc-host> 25575`.
+
+**2. Configure the dashboard**
+
+Uncomment the `minecraft` block in `config.js`:
+
+```js
+minecraft: {
+  rcon: { host: "10.0.20.87", port: 25575, password: "..." },
+  logAgent: { url: "http://10.0.20.87:8127" },   // optional — live logs
+  // commandAllowlist: ["whitelist", "list", "say", "tps"],  // optional override
+},
+```
+
+Restart the dashboard. The console and whitelist sections appear on `/plan`.
+
+**3. (Optional) Install the log agent for live logs**
+
+RCON cannot stream logs, so the live-log section is fed by a tiny
+zero-dependency agent that runs on the Minecraft host and tails
+`logs/latest.log` (it survives log rotation). Install steps in
+`tools/mc-log-agent/README.md`; verify with `curl http://<mc-host>:8127/healthz`.
+The dashboard holds a single connection to the agent and fans lines out to
+all open tabs.
+
+**Console notes**
+
+- Only the first word of a command is checked against the allowlist (default:
+  `whitelist, list, say, msg, tell, kick, tps, seed, banlist, difficulty,
+  time, weather, save-all`). Everything else is rejected server-side —
+  see SECURITY.md before extending the list.
+- `tps` is Paper/Spigot-only; vanilla replies `Unknown command`.
+- Vanilla truncates RCON responses at 4096 bytes, so a very long
+  `whitelist list` may be cut short.
+
 ## Known limitations
 
 - **QEMU VM disk usage** reports as `0 B / 0 B` unless `qemu-guest-agent` is installed inside the guest. LXC containers report correctly.

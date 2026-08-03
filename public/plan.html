@@ -287,6 +287,87 @@ main {
   padding: 1rem;
 }
 
+/* ── Minecraft admin ── */
+.admin-panel {
+  position: relative;
+  background: var(--surface);
+  border: 1px solid var(--current-line);
+  border-radius: 4px;
+  padding: 1rem 1.25rem;
+  overflow: hidden;
+  display: flex; flex-direction: column; gap: 0.75rem;
+}
+.admin-panel::before {
+  content: ""; position: absolute; inset-block: 0; left: 0;
+  width: 3px; background: var(--purple); opacity: 0.8;
+  border-radius: 4px 0 0 4px;
+}
+.console-pane, .log-pane {
+  background: var(--bg-alt);
+  border-radius: 3px;
+  padding: 0.6rem 0.75rem;
+  font-family: "JetBrains Mono", monospace;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+.console-pane { height: 260px; font-size: 0.74rem; }
+.log-pane { height: 360px; font-size: 0.7rem; }
+.console-line, .log-line {
+  white-space: pre-wrap;
+  word-break: break-word;
+  line-height: 1.5;
+  color: var(--fg);
+}
+.console-cmd { color: var(--purple); font-weight: 700; }
+.console-err { color: var(--red); }
+.log-warn { color: var(--yellow); }
+.log-err { color: var(--red); }
+.console-form, .wl-form { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+.console-input {
+  flex: 1;
+  min-width: 180px;
+  background: var(--bg-alt);
+  border: 1px solid var(--current-line);
+  border-radius: 3px;
+  color: var(--fg);
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.78rem;
+  padding: 0.45rem 0.7rem;
+  outline: none;
+  transition: border-color 140ms var(--ease-out);
+}
+.console-input:focus { border-color: var(--purple); }
+.wl-input { flex: 0 1 220px; }
+.console-hint {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.62rem;
+  color: var(--comment);
+}
+.mc-status {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.72rem;
+  color: var(--orange);
+}
+.wl-grid { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.wl-chip {
+  display: inline-flex; align-items: center; gap: 0.4rem;
+  background: var(--bg-alt);
+  border: 1px solid var(--current-line);
+  border-radius: 3px;
+  padding: 0.3rem 0.4rem 0.3rem 0.7rem;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.74rem;
+  color: var(--purple); font-weight: 700;
+}
+.wl-remove {
+  background: transparent; border: none; cursor: pointer;
+  color: var(--comment); font-size: 0.9rem; line-height: 1;
+  padding: 0.1rem 0.3rem; border-radius: 2px;
+  transition: color 140ms var(--ease-out), background 140ms var(--ease-out);
+}
+.wl-remove:hover { color: var(--red); background: rgba(var(--red-rgb), 0.1); }
+.log-toolbar { display: flex; align-items: center; gap: 0.6rem; margin-left: auto; }
+
 /* ── uPlot Dracula ── */
 .u-wrap { background: transparent !important; }
 .u-axis { color: var(--comment) !important; }
@@ -431,6 +512,43 @@ footer .prompt { color: var(--green); margin-right: 0.5ch; }
           <tr><td colspan="5" class="empty-text">loading&hellip;</td></tr>
         </tbody>
       </table>
+    </div>
+  </section>
+
+  <section id="mcConsoleSection" hidden>
+    <div class="section-title"><span class="accent">&gt;</span>CONSOLE</div>
+    <div class="admin-panel">
+      <div class="console-pane" id="consolePane"><div class="empty-text">run a command below&hellip;</div></div>
+      <form class="console-form" id="consoleForm">
+        <input class="console-input" id="consoleInput" type="text" placeholder="whitelist list" autocomplete="off" spellcheck="false">
+        <button class="preset-btn" type="submit">SEND</button>
+      </form>
+      <div class="console-hint" id="consoleHint"></div>
+    </div>
+  </section>
+
+  <section id="mcWhitelistSection" hidden>
+    <div class="section-title"><span class="accent">&gt;</span>WHITELIST</div>
+    <div class="admin-panel">
+      <div class="mc-status" id="wlStatus" hidden></div>
+      <div class="wl-grid" id="wlGrid"><div class="empty-text">loading&hellip;</div></div>
+      <form class="wl-form" id="wlForm">
+        <input class="console-input wl-input" id="wlInput" type="text" placeholder="add player&hellip;" autocomplete="off" spellcheck="false" maxlength="16">
+        <button class="preset-btn" type="submit">ADD</button>
+      </form>
+    </div>
+  </section>
+
+  <section id="mcLogsSection" hidden>
+    <div class="section-header">
+      <div class="section-title"><span class="accent">&gt;</span>LIVE LOGS</div>
+      <div class="log-toolbar">
+        <span class="mc-status" id="logStatus" hidden></span>
+        <button class="range-btn" type="button" id="logPauseBtn">PAUSE</button>
+      </div>
+    </div>
+    <div class="admin-panel">
+      <div class="log-pane" id="logPane"><div class="empty-text">loading&hellip;</div></div>
     </div>
   </section>
 </main>
@@ -906,6 +1024,225 @@ init();
 setInterval(function () {
   if (serverName) refresh().catch(function (e) { showError(e.message); showStatus('down'); });
 }, REFRESH_MS);
+
+/* ── Minecraft admin (console / whitelist / live logs) ── */
+(function () {
+  var HISTORY_MAX = 50;
+  var CONSOLE_MAX_LINES = 400;
+  var LOG_MAX_LINES = 500;
+  var cmdHistory = [];
+  var histIdx = 0;
+  var logPaused = false;
+  var logStuckToBottom = true;
+
+  function el(id) { return document.getElementById(id); }
+
+  async function mcFetch(path, body) {
+    var opts = body === undefined ? {} : {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    };
+    var res = await fetch(path, opts);
+    var data = await res.json().catch(function () { return {}; });
+    if (!res.ok) throw new Error(data.error || 'HTTP ' + res.status);
+    return data;
+  }
+
+  function appendPaneLine(pane, text, cls) {
+    var placeholder = pane.querySelector('.empty-text');
+    if (placeholder) placeholder.remove();
+    var div = document.createElement('div');
+    div.className = cls;
+    div.textContent = text;
+    pane.appendChild(div);
+  }
+  function trimPane(pane, max) {
+    while (pane.childElementCount > max) pane.removeChild(pane.firstElementChild);
+  }
+
+  /* ── console ── */
+  function consolePrint(text, cls) {
+    var pane = el('consolePane');
+    var lines = String(text).split('\n');
+    for (var i = 0; i < lines.length; i++) appendPaneLine(pane, lines[i], cls);
+    trimPane(pane, CONSOLE_MAX_LINES);
+    pane.scrollTop = pane.scrollHeight;
+  }
+
+  async function runCommand(cmd) {
+    consolePrint('> ' + cmd, 'console-line console-cmd');
+    try {
+      var data = await mcFetch('/api/mc/command', { command: cmd });
+      consolePrint(data.response || '(no output)', 'console-line');
+      if (/^\/?whitelist\b/i.test(cmd)) loadWhitelist();
+    } catch (err) {
+      consolePrint(err.message, 'console-line console-err');
+    }
+  }
+
+  function wireConsole() {
+    var input = el('consoleInput');
+    el('consoleForm').addEventListener('submit', function (e) {
+      e.preventDefault();
+      var cmd = input.value.trim();
+      if (!cmd) return;
+      cmdHistory.push(cmd);
+      if (cmdHistory.length > HISTORY_MAX) cmdHistory.shift();
+      histIdx = cmdHistory.length;
+      input.value = '';
+      runCommand(cmd);
+    });
+    input.addEventListener('keydown', function (e) {
+      if (e.key === 'ArrowUp') {
+        if (histIdx > 0) { histIdx--; input.value = cmdHistory[histIdx]; }
+        e.preventDefault();
+      } else if (e.key === 'ArrowDown') {
+        if (histIdx < cmdHistory.length - 1) { histIdx++; input.value = cmdHistory[histIdx]; }
+        else { histIdx = cmdHistory.length; input.value = ''; }
+        e.preventDefault();
+      }
+    });
+  }
+
+  /* ── whitelist ── */
+  function setWlStatus(msg) {
+    var s = el('wlStatus');
+    if (msg) { s.textContent = msg; s.hidden = false; }
+    else { s.hidden = true; }
+  }
+
+  function renderWhitelist(players) {
+    var grid = el('wlGrid');
+    if (!players || players.length === 0) {
+      grid.innerHTML = '<div class="empty-text">no whitelisted players</div>';
+      return;
+    }
+    grid.innerHTML = players.map(function (name) {
+      return '<span class="wl-chip">' + escapeHtml(name) +
+        '<button class="wl-remove" type="button" data-name="' + escapeHtml(name) +
+        '" title="remove ' + escapeHtml(name) + '">&times;</button></span>';
+    }).join('');
+  }
+
+  async function loadWhitelist() {
+    try {
+      var data = await mcFetch('/api/mc/whitelist');
+      renderWhitelist(data.players);
+      setWlStatus(null);
+    } catch (err) {
+      setWlStatus(err.message);
+    }
+  }
+
+  function wireWhitelist() {
+    el('wlForm').addEventListener('submit', async function (e) {
+      e.preventDefault();
+      var input = el('wlInput');
+      var name = input.value.trim();
+      if (!name) return;
+      if (!/^[A-Za-z0-9_]{3,16}$/.test(name)) {
+        setWlStatus('invalid name — 3-16 letters, digits, underscores');
+        return;
+      }
+      try {
+        var data = await mcFetch('/api/mc/whitelist/add', { name: name });
+        renderWhitelist(data.players);
+        setWlStatus(data.result === 'already' ? name + ' is already whitelisted' : null);
+        input.value = '';
+      } catch (err) {
+        setWlStatus(err.message);
+      }
+    });
+    el('wlGrid').addEventListener('click', async function (e) {
+      var btn = e.target.closest('.wl-remove');
+      if (!btn) return;
+      var name = btn.dataset.name;
+      if (!confirm('Remove ' + name + ' from the whitelist?')) return;
+      try {
+        var data = await mcFetch('/api/mc/whitelist/remove', { name: name });
+        renderWhitelist(data.players);
+        setWlStatus(null);
+      } catch (err) {
+        setWlStatus(err.message);
+      }
+    });
+  }
+
+  /* ── live logs ── */
+  function setLogStatus(msg) {
+    var s = el('logStatus');
+    if (msg) { s.textContent = msg; s.hidden = false; }
+    else { s.hidden = true; }
+  }
+
+  function logLineClass(line) {
+    if (/ERROR|FATAL/.test(line)) return 'log-line log-err';
+    if (/WARN/.test(line)) return 'log-line log-warn';
+    return 'log-line';
+  }
+
+  function appendLog(line) {
+    var pane = el('logPane');
+    appendPaneLine(pane, line, logLineClass(line));
+    trimPane(pane, LOG_MAX_LINES);
+    if (!logPaused && logStuckToBottom) pane.scrollTop = pane.scrollHeight;
+  }
+
+  function initLogs() {
+    var pane = el('logPane');
+    pane.addEventListener('scroll', function () {
+      logStuckToBottom = pane.scrollTop + pane.clientHeight >= pane.scrollHeight - 8;
+    });
+    el('logPauseBtn').addEventListener('click', function () {
+      logPaused = !logPaused;
+      var btn = el('logPauseBtn');
+      btn.textContent = logPaused ? 'RESUME' : 'PAUSE';
+      btn.dataset.active = logPaused ? 'true' : 'false';
+      if (!logPaused) { logStuckToBottom = true; pane.scrollTop = pane.scrollHeight; }
+    });
+
+    mcFetch('/api/mc/logs/recent?lines=200').then(function (data) {
+      pane.innerHTML = '';
+      var lines = data.lines || [];
+      for (var i = 0; i < lines.length; i++) appendLog(lines[i]);
+      pane.scrollTop = pane.scrollHeight;
+    }).catch(function (err) {
+      setLogStatus(err.message);
+    });
+
+    var es = new EventSource('/api/mc/logs/stream');
+    es.addEventListener('line', function (ev) {
+      var data;
+      try { data = JSON.parse(ev.data); } catch { return; }
+      setLogStatus(null);
+      appendLog(data.line);
+    });
+    es.addEventListener('offline', function () {
+      setLogStatus('log agent offline — retrying');
+    });
+    es.onerror = function () {
+      setLogStatus('stream disconnected — reconnecting');
+    };
+  }
+
+  fetch('/api/mc/config')
+    .then(function (r) { return r.ok ? r.json() : null; })
+    .then(function (cfg) {
+      if (!cfg || !cfg.console) return;
+      el('mcConsoleSection').hidden = false;
+      el('mcWhitelistSection').hidden = false;
+      el('consoleHint').textContent = 'allowed: ' + (cfg.allowlist || []).join(', ');
+      wireConsole();
+      wireWhitelist();
+      loadWhitelist();
+      if (cfg.logs) {
+        el('mcLogsSection').hidden = false;
+        initLogs();
+      }
+    })
+    .catch(function () {});
+})();
 </script>
 </body>
 </html>
