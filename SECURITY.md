@@ -48,6 +48,9 @@ plaintext admin panel.
   themselves are also unauthenticated — firewall their ports (default 8127,
   one port per server) so only the dashboard host can reach them
   (see `tools/mc-log-agent/README.md`).
+- `GET /api/servers/:id/mc/stats/{now,history}` — player counts, TPS, and
+  tick times sampled over RCON for servers without Plan. The sampler only
+  ever runs the read-only `list` and `forge tps`/`tps` commands.
 - `GET /api/weather` — proxies Open-Meteo (public, no auth).
 
 ## Hardening checklist

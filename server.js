@@ -11,6 +11,7 @@ const { validateTvConfig, trackedEntitiesFromTv, resolveShortcut, buildTvSnapsho
 const { validateTrainerConfig, buildSystemPrompt, parseTrainerReply, validateMessages, TRAINER_SCHEMA, OllamaClient } = require('./lib/spanish_trainer.js');
 const { SseBroker } = require('./lib/sse_broker.js');
 const { normalizeServersConfig, validateServersConfig, checkCommand, isValidUsername, stripColorCodes, parseWhitelistList, classifyWhitelistResponse, DEFAULT_COMMAND_ALLOWLIST, McLogRelay } = require('./lib/minecraft.js');
+const { McSampler } = require('./lib/mc_sampler.js');
 const { rconExec } = require('./lib/rcon.js');
 
 const ROLLUP_INTERVAL_MS = 5 * 60 * 1000; // every 5 minutes
@@ -19,6 +20,14 @@ const RANGE_PRESETS = {
   '24h': 24 * 60 * 60 * 1000,
   '7d':  7  * 24 * 60 * 60 * 1000,
   '30d': 30 * 24 * 60 * 60 * 1000,
+};
+// Bucket sizes for RCON-sampler history so long ranges stay a bounded number
+// of points; short ranges return raw ~30s samples.
+const SAMPLER_BUCKET_MS = {
+  '1h':  0,
+  '24h': 0,
+  '7d':  5 * 60 * 1000,
+  '30d': 20 * 60 * 1000,
 };
 
 function validateConfig(cfg) {
@@ -166,6 +175,7 @@ function main() {
     try {
       storage.rollup();
       storage.pruneAlertEvents();
+      storage.pruneMcSamples();
     } catch (err) {
       console.error(`[storage] rollup failed: ${err.message}`);
     }
@@ -550,23 +560,36 @@ function main() {
   if (config.servers?.length) {
     // Registry: one entry per configured Minecraft server, each with its own
     // log relay + SSE broker. RCON queues are per host:port inside lib/rcon.
+    // Servers without Plan but with RCON get an McSampler for chart data
+    // (players online + TPS), unless minecraft.sampler is false.
     const serverEntries = new Map();
     for (const s of config.servers) {
       const entry = {
         id: s.id,
         label: s.label || s.id,
-        plan: s.plan,
+        plan: s.plan || null,
         mc: s.minecraft || null,
         allowlist: s.minecraft?.commandAllowlist || DEFAULT_COMMAND_ALLOWLIST,
         logAgentUrl: null,
         logBroker: null,
         logRelay: null,
+        sampler: null,
       };
       if (entry.mc?.logAgent) {
         entry.logAgentUrl = entry.mc.logAgent.url.replace(/\/$/, '');
         entry.logBroker = new SseBroker();
         entry.logRelay = new McLogRelay({ url: entry.logAgentUrl, broker: entry.logBroker });
         entry.logRelay.start();
+      }
+      if (!entry.plan && entry.mc?.rcon && entry.mc.sampler !== false) {
+        entry.sampler = new McSampler({
+          serverId: entry.id,
+          rcon: entry.mc.rcon,
+          storage,
+          intervalMs: entry.mc.sampler?.intervalMs,
+          tpsCommand: entry.mc.sampler?.tpsCommand,
+        });
+        entry.sampler.start();
       }
       serverEntries.set(s.id, entry);
     }
@@ -582,7 +605,9 @@ function main() {
       res.json(config.servers.map((s) => ({
         id: s.id,
         label: s.label || s.id,
-        plan: { machine: s.plan.machine, guest: s.plan.guest },
+        machine: s.machine || null,
+        guest: s.guest || null,
+        hasPlan: !!s.plan,
         hasMc: !!s.minecraft,
       })));
     });
@@ -598,6 +623,7 @@ function main() {
     });
 
     app.use('/api/servers/:serverId/plan', withServer(async (entry, req, res) => {
+      if (!entry.plan) return res.status(404).json({ error: 'plan not configured for this server' });
       const target = new URL(req.path, entry.plan.url);
       for (const [k, v] of Object.entries(req.query)) target.searchParams.set(k, v);
       try {
@@ -692,6 +718,29 @@ function main() {
       entry.logBroker.addClient(res);
       if (!entry.logRelay.isConnected()) {
         res.write(`event: offline\ndata: ${JSON.stringify({ connected: false })}\n\n`);
+      }
+    }));
+
+    app.get('/api/servers/:serverId/mc/stats/now', withMc((entry, _req, res) => {
+      if (!entry.sampler) return res.status(404).json({ error: 'sampler not enabled for this server' });
+      res.json(entry.sampler.status());
+    }));
+
+    app.get('/api/servers/:serverId/mc/stats/history', withMc((entry, req, res) => {
+      if (!entry.sampler) return res.status(404).json({ error: 'sampler not enabled for this server' });
+      try {
+        const range = RANGE_PRESETS[req.query.range] ? req.query.range : '24h';
+        const toTs = Date.now();
+        const fromTs = toTs - RANGE_PRESETS[range];
+        const values = storage.queryMcSamples({
+          serverId: entry.id,
+          fromTs,
+          toTs,
+          bucketMs: SAMPLER_BUCKET_MS[range],
+        });
+        res.json({ serverId: entry.id, range, fromTs, toTs, keys: ['date', 'playersOnline', 'tps', 'tickMs'], values });
+      } catch (err) {
+        res.status(500).json({ error: err.message });
       }
     }));
   }

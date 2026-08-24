@@ -28,8 +28,9 @@ const devConfig = {
     { machine: 'proxmox-internal', guest: 'dashboard',  url: 'http://127.0.0.1:1/dashboard', icon: 'dashboard.svg'    },
   ],
   servers: [
-    { id: 'vanilla',  label: 'Vanilla SMP', plan: { url: 'http://mock', machine: 'proxmox-dmz', guest: 'mc-server' } },
-    { id: 'soulrend', label: 'Soulrend',    plan: { url: 'http://mock', machine: 'proxmox-dmz', guest: 'soulrend-srv' } },
+    { id: 'vanilla',  label: 'Vanilla SMP', machine: 'proxmox-dmz', guest: 'mc-server', plan: { url: 'http://mock' } },
+    // Soulrend is a Forge pack — no Plan; charts come from the RCON sampler.
+    { id: 'soulrend', label: 'Soulrend',    machine: 'proxmox-dmz', guest: 'soulrend-srv' },
   ],
 };
 
@@ -141,6 +142,7 @@ app.get('/api/history', (req, res) => {
 // ── Plan + Minecraft admin mock (per server) ───────────
 const mockServers = new Map([
   ['vanilla', {
+    hasPlan: true,
     planServerName: 'Survival',
     tpsBase: 19.8,
     allowlist: DEFAULT_COMMAND_ALLOWLIST,
@@ -150,7 +152,7 @@ const mockServers = new Map([
     logFile: '/opt/minecraft/logs/latest.log',
   }],
   ['soulrend', {
-    planServerName: 'Soulrend',
+    hasPlan: false,   // Forge pack — charts come from the mocked RCON sampler
     tpsBase: 18.6,
     allowlist: [...DEFAULT_COMMAND_ALLOWLIST, 'forge'],
     whitelist: ['ModdedMage', 'GearGrinder', 'CraftQueen'],
@@ -178,7 +180,9 @@ app.get('/api/servers', (_req, res) => {
   res.json(devConfig.servers.map((s) => ({
     id: s.id,
     label: s.label || s.id,
-    plan: { machine: s.plan.machine, guest: s.plan.guest },
+    machine: s.machine || null,
+    guest: s.guest || null,
+    hasPlan: !!s.plan,
     hasMc: true,
   })));
 });
@@ -224,6 +228,7 @@ function mockPlayersTable(ms) {
 }
 
 app.use('/api/servers/:serverId/plan', withMockServer((ms, req, res) => {
+  if (!ms.hasPlan) return res.status(404).json({ error: 'plan not configured for this server' });
   const p = req.path;
   const avgTps = ms.tpsBase.toFixed(2);
   if (p === '/v1/networkMetadata') {
@@ -348,6 +353,37 @@ app.get('/api/servers/:serverId/mc/logs/recent', withMockServer((ms, req, res) =
 
 app.get('/api/servers/:serverId/mc/logs/stream', withMockServer((ms, _req, res) => {
   ms.logBroker.addClient(res);
+}));
+
+// ── RCON sampler mock (charts for servers without Plan) ─
+function mockSamplerPoint(ms, t) {
+  const hour = new Date(t).getHours();
+  const activity = Math.sin((hour - 6) * Math.PI / 12);
+  const players = Math.max(0, Math.round(3 + activity * 4 + (Math.random() - 0.5) * 2));
+  const tps = Math.min(20, Math.max(14, ms.tpsBase - Math.random() * 0.6 + activity * 0.3));
+  const tickMs = Math.min(55, Math.max(5, 50 - tps * 2.2 + Math.random() * 3));
+  return { players, tps, tickMs };
+}
+
+app.get('/api/servers/:serverId/mc/stats/now', withMockServer((ms, _req, res) => {
+  if (ms.hasPlan) return res.status(404).json({ error: 'sampler not enabled for this server' });
+  const p = mockSamplerPoint(ms, Date.now());
+  res.json({ online: true, sample: { ts: Date.now(), ...p } });
+}));
+
+app.get('/api/servers/:serverId/mc/stats/history', withMockServer((ms, req, res) => {
+  if (ms.hasPlan) return res.status(404).json({ error: 'sampler not enabled for this server' });
+  const range = RANGE_PRESETS[req.query.range] ? req.query.range : '24h';
+  const rangeMs = RANGE_PRESETS[range];
+  const toTs = Date.now();
+  const fromTs = toTs - rangeMs;
+  const step = Math.max(30_000, Math.floor(rangeMs / 800));
+  const values = [];
+  for (let t = fromTs; t <= toTs; t += step) {
+    const p = mockSamplerPoint(ms, t);
+    values.push([t, p.players, p.tps, p.tickMs]);
+  }
+  res.json({ serverId: req.params.serverId, range, fromTs, toTs, keys: ['date', 'playersOnline', 'tps', 'tickMs'], values });
 }));
 
 // ── Page routes (clean URLs) ───────────────────────────

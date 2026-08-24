@@ -198,36 +198,60 @@ Replies include a tap-to-hear speaker button that uses browser speech synthesis 
 ## Minecraft servers (analytics, console, whitelist, live logs)
 
 The `servers` array in `config.js` mounts one analytics + admin page per
-Minecraft server at `/plan/<id>` — Plan Player Analytics charts, and
-optionally an allowlisted RCON console, a whitelist manager, and a live
-server-log tail. Any number of servers is supported; each page shows a small
-nav to switch between them, and `/monitoring` renders a
-"`<label>` analytics →" link on each server's guest row. RCON passwords stay
-server-side; the browser only ever talks to the dashboard.
+Minecraft server at `/plan/<id>` — charts, and optionally an allowlisted
+RCON console, a whitelist manager, and a live server-log tail. Any number of
+servers is supported; each page shows a small nav to switch between them,
+and `/monitoring` renders a "`<label>` analytics →" link on each server's
+guest row. RCON passwords stay server-side; the browser only ever talks to
+the dashboard.
+
+Charts come from one of two sources per server:
+
+- **Plan Player Analytics** (`plan` block) — full analytics: playerbase
+  groups, per-player playtime/sessions table, world metrics. Plan runs on
+  **Paper/Spigot/Folia, Fabric, and Sponge** — there is **no native Forge
+  build** ([supported platforms](https://github.com/plan-player-analytics/Plan)),
+  so Forge modpacks can't use this.
+- **Built-in RCON sampler** (no `plan` block) — the dashboard polls the
+  server over its existing RCON connection every 30s (`list` for players
+  online, `forge tps` or `tps` for TPS/tick time — auto-detected) and stores
+  the samples in its own SQLite, charting players online, TPS, and tick time
+  with the usual range picker. Works on any server with RCON, including
+  Forge packs; no mods added. No per-player analytics.
 
 ```js
 servers: [
   {
     id: 'vanilla',              // URL-safe slug → /plan/vanilla
     label: 'Vanilla SMP',
-    plan: { url: 'http://10.0.20.87:8804', machine: 'proxmox-dmz', guest: 'mc-server' },
+    machine: 'proxmox-dmz',     // optional — links the page to the
+    guest: 'mc-server',         //   matching /monitoring guest row
+    plan: { url: 'http://10.0.20.87:8804' },
     minecraft: {                // optional — console/whitelist/logs
       rcon: { host: '10.0.20.87', port: 25575, password: '...' },
       logAgent: { url: 'http://10.0.20.87:8127' },   // optional — live logs
     },
   },
   {
-    id: 'soulrend',             // e.g. a Forge modded server
-    label: 'Soulrend',
-    plan: { url: 'http://10.0.20.88:8805', machine: 'proxmox-dmz', guest: 'soulrend-srv' },
+    id: 'soulrend',             // a Forge modded pack — no Plan:
+    label: 'Soulrend',          //   charts come from the RCON sampler
+    machine: 'proxmox-dmz',
+    guest: 'soulrend-srv',
     minecraft: {
       rcon: { host: '10.0.20.88', port: 25576, password: '...' },
       logAgent: { url: 'http://10.0.20.88:8128' },
       commandAllowlist: ['whitelist', 'list', 'say', 'tps', 'forge'],
+      // sampler: { intervalMs: 30000, tpsCommand: 'forge tps' },  // optional tuning
+      // sampler: false,                                           // opt out
     },
   },
 ],
 ```
+
+Each entry needs `plan` and/or `minecraft`. The sampler runs automatically
+for entries that have `minecraft.rcon` but no `plan`; set
+`minecraft.sampler: false` to disable it. Sampler history follows the same
+30-day retention as the machine metrics.
 
 **Legacy config**: the old single-server top-level `plan:` + `minecraft:`
 blocks auto-migrate at startup into a one-element `servers` array with id
@@ -236,19 +260,21 @@ should use `servers`.
 
 ### Per-server setup
 
-**1. Install Plan on the Minecraft server**
+**1. Charts: install Plan — or rely on the RCON sampler**
 
-- **Paper/Spigot**: drop the [Plan](https://github.com/plan-player-analytics/Plan)
-  plugin jar into `plugins/`.
-- **Forge/Fabric** (e.g. a modded pack like Soulrend): drop the Plan **mod**
-  jar into `mods/` — same web API, so the full dashboard integration works.
+- **Paper/Spigot/Folia**: drop the [Plan](https://github.com/plan-player-analytics/Plan)
+  plugin jar into `plugins/`. **Fabric/Sponge**: use the matching Plan
+  platform jar.
+- **Forge packs** (e.g. Soulrend): Plan has no Forge build — omit the `plan`
+  block and the dashboard's RCON sampler provides the charts instead
+  (players online + TPS + tick time; TPS via Forge's built-in `forge tps`
+  command). Nothing to install on the server beyond RCON.
 
-In Plan's config, note the web-server port (default 8804) and set
-`plan.url` accordingly. If two Minecraft servers run on the **same host**,
-give each Plan instance a distinct port (e.g. 8804 and 8805).
-`plan.machine`/`plan.guest` are the Proxmox `machines[].name` and guest name
-of the VM/LXC running that server — they link the analytics page to its
-`/monitoring` guest row.
+If using Plan: note the web-server port in Plan's config (default 8804) and
+set `plan.url` accordingly. If two Minecraft servers run on the **same
+host**, give each Plan instance a distinct port. `machine`/`guest` on the
+entry are the Proxmox `machines[].name` and guest name of the VM/LXC running
+that server — they link the analytics page to its `/monitoring` guest row.
 
 **2. Enable RCON on the Minecraft server**
 

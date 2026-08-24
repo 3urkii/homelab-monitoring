@@ -511,12 +511,12 @@ footer .prompt { color: var(--green); margin-right: 0.5ch; }
     </div>
   </section>
 
-  <section>
+  <section id="playerbaseSection">
     <div class="section-title"><span class="accent">&gt;</span>PLAYERBASE</div>
     <div class="playerbase-grid" id="playerbaseGrid"></div>
   </section>
 
-  <section>
+  <section id="playersSection">
     <div class="section-title"><span class="accent">&gt;</span>PLAYERS</div>
     <div class="table-wrapper">
       <table class="players-table">
@@ -573,7 +573,7 @@ footer .prompt { color: var(--green); margin-right: 0.5ch; }
     </div>
   </section>
 </main>
-<footer><span class="prompt">$</span>minecraft analytics via plan &mdash; refreshing every 60s</footer>
+<footer><span class="prompt">$</span><span id="footerText">minecraft analytics &mdash; refreshing every 60s</span></footer>
 <script src="https://cdn.jsdelivr.net/npm/uplot@1.6.31/dist/uPlot.iife.min.js"></script>
 <script>
 const REFRESH_MS = 60000;
@@ -581,6 +581,9 @@ const REFRESH_MS = 60000;
 // internal server name (serverName below), which is resolved via the Plan API.
 var serverId = (location.pathname.match(/^\/plan\/([a-z0-9_-]+)/) || [])[1] || null;
 var serverLabel = null;
+// true → charts come from the Plan API; false → from the dashboard's RCON
+// sampler (/mc/stats/*), for servers Plan can't run on (e.g. Forge packs).
+var hasPlan = true;
 let serverName = null;
 let unifiedChart = null;
 let rawOnlineData = null;
@@ -598,6 +601,7 @@ var METRIC_DEFS = [
   { key: 'chunks',        label: 'chunks',  color: '#8be9fd', fill: null,                    width: 1.5, scale: 'count' },
   { key: 'disk',          label: 'disk',    color: '#ff5555', fill: null,                    width: 1.5, scale: 'disk' },
   { key: 'ping',          label: 'ping',    color: '#f8f8f2', fill: null,                    width: 1.5, scale: 'ping', altKeys: ['avgPing'] },
+  { key: 'tickMs',        label: 'tick ms', color: '#ffb86c', fill: null,                    width: 1.5, scale: 'ping' },
 ];
 
 var PRESETS = {
@@ -605,6 +609,7 @@ var PRESETS = {
   players: ['playersOnline', 'tps'],
   perf:    ['tps', 'cpu', 'ram'],
   world:   ['entities', 'chunks', 'playersOnline'],
+  rcon:    ['playersOnline', 'tps', 'tickMs'],
 };
 
 function rollingMean(arr, window) {
@@ -986,6 +991,67 @@ async function fetchServers() {
   return res.json();
 }
 
+/* ── RCON-sampler mode (servers without Plan) ── */
+function renderRconOverview(now, hist) {
+  var values = (hist && hist.values) || [];
+  var lastRow = values.length ? values[values.length - 1] : null;
+  var s = now && now.sample
+    ? now.sample
+    : (lastRow ? { players: lastRow[1], tps: lastRow[2], tickMs: lastRow[3] } : {});
+
+  var tpsSum = 0, tpsN = 0, peak = null;
+  for (var i = 0; i < values.length; i++) {
+    if (values[i][2] != null) { tpsSum += values[i][2]; tpsN++; }
+    if (values[i][1] != null && (peak == null || values[i][1] > peak)) peak = values[i][1];
+  }
+  var avgTps = tpsN ? tpsSum / tpsN : null;
+  var rangeLabel = (hist && hist.range) || chartRange;
+
+  var cards = [
+    { label: 'Online Now', value: s.players ?? '—', style: (s.players ?? 0) > 0 ? 'color:var(--green)' : '' },
+    { label: 'TPS',        value: s.tps != null ? s.tps.toFixed(2) : '—', style: tpsStyle(s.tps) },
+    { label: 'Tick Time',  value: s.tickMs != null ? s.tickMs.toFixed(1) : '—', sub: s.tickMs != null ? 'ms mean' : null },
+    { label: 'Peak Players (' + rangeLabel + ')', value: peak ?? '—' },
+    { label: 'Avg TPS (' + rangeLabel + ')', value: avgTps != null ? avgTps.toFixed(2) : '—', style: tpsStyle(avgTps) },
+  ];
+  document.getElementById('overviewCards').innerHTML = cards.map(function (c) {
+    return '<div class="stat-card">' +
+      '<div class="stat-card-label">' + c.label + '</div>' +
+      '<div class="stat-card-value" style="' + (c.style || '') + '">' + c.value + '</div>' +
+      (c.sub ? '<div class="stat-card-sub">' + escapeHtml(String(c.sub)) + '</div>' : '') +
+      '</div>';
+  }).join('');
+}
+
+async function refreshRcon() {
+  var base = '/api/servers/' + serverId + '/mc/stats';
+  var res = await fetch(base + '/history?range=' + chartRange);
+  if (!res.ok) {
+    var body = await res.json().catch(function () { return {}; });
+    throw new Error(body.error || 'HTTP ' + res.status);
+  }
+  var hist = await res.json();
+  rawPerfData = { keys: hist.keys, values: hist.values };
+  rawOnlineData = null;
+  renderUnifiedChart();
+
+  var now = null;
+  try {
+    var nowRes = await fetch(base + '/now');
+    if (nowRes.ok) now = await nowRes.json();
+  } catch (e) { /* cards fall back to the last history row */ }
+  renderRconOverview(now, hist);
+
+  document.getElementById('lastRefresh').textContent = 'last refresh ' + new Date().toLocaleTimeString();
+  if (now && now.online === false) {
+    showError('sampler offline — is the server up?');
+    showStatus('down');
+  } else {
+    hideError();
+    showStatus('up');
+  }
+}
+
 function renderServerNav(servers) {
   var nav = document.getElementById('serverNav');
   if (!nav || servers.length < 2) return;
@@ -1008,10 +1074,23 @@ async function init() {
     }
     var current = servers.find(function (s) { return s.id === serverId; });
     serverLabel = current.label || current.id;
+    hasPlan = !!current.hasPlan;
     document.title = 'burkii.home / ' + serverLabel.toLowerCase();
     var brandSub = document.querySelector('.brand-sub');
     if (brandSub) brandSub.textContent = '/' + serverLabel.toLowerCase();
     renderServerNav(servers);
+    if (!hasPlan) {
+      // RCON-sampler mode: no Plan behind this server — hide the Plan-only
+      // sections and drive the chart from /mc/stats/* instead.
+      activePreset = 'rcon';
+      document.getElementById('presetPicker').style.display = 'none';
+      document.getElementById('playerbaseSection').hidden = true;
+      document.getElementById('playersSection').hidden = true;
+      document.getElementById('footerText').textContent = 'minecraft charts via rcon sampler — refreshing every 60s';
+      await refreshRcon();
+      return;
+    }
+    document.getElementById('footerText').textContent = 'minecraft analytics via plan — refreshing every 60s';
     var meta = await fetchPlan('/v1/networkMetadata');
     serverName = meta?.currentServer?.serverName
       || (meta?.servers && meta.servers[0]?.serverName)
@@ -1044,7 +1123,12 @@ document.getElementById('rangePicker').addEventListener('click', function (e) {
   document.querySelectorAll('.range-btn').forEach(function (b) {
     b.dataset.active = b.dataset.range === chartRange ? 'true' : 'false';
   });
-  renderUnifiedChart();
+  if (hasPlan) {
+    renderUnifiedChart();
+  } else {
+    // Sampler history is fetched per range (long ranges come back bucketed).
+    refreshRcon().catch(function (err) { showError(err.message); showStatus('down'); });
+  }
 });
 
 document.getElementById('presetPicker').addEventListener('click', function (e) {
@@ -1069,15 +1153,21 @@ document.getElementById('unifiedChart').addEventListener('dblclick', function ()
   unifiedChart.setScale('x', { min: xData[0], max: xData[xData.length - 1] });
 });
 
+function doRefresh() {
+  if (!hasPlan && serverId) {
+    refreshRcon().catch(function (e) { showError(e.message); showStatus('down'); });
+  } else if (serverName) {
+    refresh().catch(function (e) { showError(e.message); showStatus('down'); });
+  }
+}
+
 document.getElementById('refreshBtn').addEventListener('click', function () {
-  if (serverName) refresh().catch(function (e) { showError(e.message); showStatus('down'); });
+  if (serverName || !hasPlan) doRefresh();
   else init();
 });
 
 init();
-setInterval(function () {
-  if (serverName) refresh().catch(function (e) { showError(e.message); showStatus('down'); });
-}, REFRESH_MS);
+setInterval(doRefresh, REFRESH_MS);
 
 /* ── Minecraft admin (console / whitelist / live logs) ── */
 (function () {

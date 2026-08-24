@@ -87,7 +87,9 @@ test('normalizeServersConfig: legacy plan+minecraft migrates to one-element serv
   assert.equal(cfg.servers.length, 1);
   assert.equal(cfg.servers[0].id, 'default');
   assert.equal(cfg.servers[0].label, 'mc-server');
-  assert.deepEqual(cfg.servers[0].plan, goodPlan);
+  assert.equal(cfg.servers[0].machine, 'proxmox-dmz');
+  assert.equal(cfg.servers[0].guest, 'mc-server');
+  assert.deepEqual(cfg.servers[0].plan, { url: goodPlan.url });
   assert.deepEqual(cfg.servers[0].minecraft, { rcon: goodConfig.rcon });
   assert.deepEqual(validateServersConfig(cfg.servers), []);
 });
@@ -98,12 +100,28 @@ test('normalizeServersConfig: legacy plan without minecraft migrates without a m
   assert.equal(cfg.servers[0].minecraft, undefined);
 });
 
-test('normalizeServersConfig: existing servers array passes through untouched', () => {
-  const servers = [{ id: 'vanilla', label: 'Vanilla SMP', plan: { ...goodPlan } }];
+test('normalizeServersConfig: lifts machine/guest out of a servers entry plan block', () => {
+  const cfg = { servers: [{ id: 'vanilla', plan: { ...goodPlan } }] };
+  normalizeServersConfig(cfg);
+  assert.equal(cfg.servers[0].machine, 'proxmox-dmz');
+  assert.equal(cfg.servers[0].guest, 'mc-server');
+  assert.deepEqual(cfg.servers[0].plan, { url: goodPlan.url });
+});
+
+test('normalizeServersConfig: entry-level machine/guest win over plan-block ones', () => {
+  const cfg = { servers: [{ id: 'vanilla', machine: 'pve2', guest: 'other', plan: { ...goodPlan } }] };
+  normalizeServersConfig(cfg);
+  assert.equal(cfg.servers[0].machine, 'pve2');
+  assert.equal(cfg.servers[0].guest, 'other');
+  assert.deepEqual(cfg.servers[0].plan, { url: goodPlan.url });
+});
+
+test('normalizeServersConfig: existing servers array in the current shape passes through untouched', () => {
+  const servers = [{ id: 'vanilla', label: 'Vanilla SMP', machine: 'pve', guest: 'mc', plan: { url: goodPlan.url } }];
   const cfg = { servers };
   normalizeServersConfig(cfg);
   assert.equal(cfg.servers, servers);
-  assert.equal(cfg.servers.length, 1);
+  assert.deepEqual(cfg.servers[0], { id: 'vanilla', label: 'Vanilla SMP', machine: 'pve', guest: 'mc', plan: { url: goodPlan.url } });
 });
 
 test('normalizeServersConfig: no plan and no servers is a no-op', () => {
@@ -117,20 +135,60 @@ test('normalizeServersConfig: tolerates non-object config', () => {
   assert.equal(normalizeServersConfig(undefined), undefined);
 });
 
-test('validateServersConfig: good multi-server config passes', () => {
+test('validateServersConfig: good multi-server config passes (plan-only, mc-only, both)', () => {
   const servers = [
-    { id: 'vanilla', label: 'Vanilla SMP', plan: { ...goodPlan }, minecraft: { rcon: goodConfig.rcon } },
     {
+      id: 'vanilla',
+      label: 'Vanilla SMP',
+      machine: 'proxmox-dmz',
+      guest: 'mc-server',
+      plan: { url: goodPlan.url },
+      minecraft: { rcon: goodConfig.rcon },
+    },
+    {
+      // Forge pack: no plan — charts come from the RCON sampler.
       id: 'soulrend',
       label: 'Soulrend',
-      plan: { url: 'http://10.0.20.88:8805', machine: 'proxmox-dmz', guest: 'soulrend-srv' },
+      machine: 'proxmox-dmz',
+      guest: 'soulrend-srv',
       minecraft: {
         rcon: { host: '10.0.20.88', port: 25576, password: 'another-long-string' },
         commandAllowlist: ['whitelist', 'list', 'say', 'tps', 'forge'],
+        sampler: { intervalMs: 30_000, tpsCommand: 'forge tps' },
       },
     },
+    { id: 'plan_only', plan: { url: 'http://10.0.20.89:8806' } },
   ];
   assert.deepEqual(validateServersConfig(servers), []);
+});
+
+test('validateServersConfig: entry needs plan and/or minecraft', () => {
+  const errs = validateServersConfig([{ id: 'a' }]);
+  assert.ok(errs.some((e) => /servers\[0\] must have a plan block .* minecraft block/.test(e)));
+});
+
+test('validateServersConfig: bad machine/guest rejected', () => {
+  for (const bad of ['', 'REPLACE_ME', 42]) {
+    const errs = validateServersConfig([{ id: 'a', machine: bad, plan: { url: goodPlan.url } }]);
+    assert.ok(
+      errs.some((e) => /servers\[0\]\.machine must be a non-empty string/.test(e)),
+      `machine ${JSON.stringify(bad)} should be rejected`,
+    );
+  }
+});
+
+test('validateServersConfig: sampler false and tuning objects accepted, bad values rejected', () => {
+  const base = { id: 'a', minecraft: { rcon: goodConfig.rcon } };
+  assert.deepEqual(validateServersConfig([{ ...base, minecraft: { ...base.minecraft, sampler: false } }]), []);
+  for (const [sampler, re] of [
+    ['on', /sampler must be false or an object/],
+    [{ intervalMs: 1000 }, /sampler\.intervalMs must be an integer >= 5000/],
+    [{ intervalMs: 30.5 }, /sampler\.intervalMs must be an integer >= 5000/],
+    [{ tpsCommand: '' }, /sampler\.tpsCommand must be a non-empty string/],
+  ]) {
+    const errs = validateServersConfig([{ ...base, minecraft: { ...base.minecraft, sampler } }]);
+    assert.ok(errs.some((e) => re.test(e)), `${JSON.stringify(sampler)} should be rejected`);
+  }
 });
 
 test('validateServersConfig: rejects non-array and empty array', () => {
@@ -160,14 +218,18 @@ test('validateServersConfig: duplicate ids rejected', () => {
   assert.ok(errs.some((e) => /servers\[1\]\.id 'vanilla' is duplicated/.test(e)));
 });
 
-test('validateServersConfig: plan sub-object required and validated', () => {
-  assert.ok(validateServersConfig([{ id: 'a' }]).some((e) => /servers\[0\]\.plan must be an object/.test(e)));
-  const errs = validateServersConfig([
-    { id: 'a', plan: { url: 'http://REPLACE_ME:8804', machine: 'REPLACE_ME', guest: 'REPLACE_ME' } },
-  ]);
-  assert.ok(errs.some((e) => /servers\[0\]\.plan\.url must be a non-empty URL/.test(e)));
-  assert.ok(errs.some((e) => /servers\[0\]\.plan\.machine is required/.test(e)));
-  assert.ok(errs.some((e) => /servers\[0\]\.plan\.guest is required/.test(e)));
+test('validateServersConfig: plan validated when present', () => {
+  assert.ok(
+    validateServersConfig([{ id: 'a', plan: 'nope' }])
+      .some((e) => /servers\[0\]\.plan must be an object/.test(e)),
+  );
+  for (const url of [undefined, '', 'http://REPLACE_ME:8804', 42]) {
+    const errs = validateServersConfig([{ id: 'a', plan: { url } }]);
+    assert.ok(
+      errs.some((e) => /servers\[0\]\.plan\.url must be a non-empty URL/.test(e)),
+      `url ${JSON.stringify(url)} should be rejected`,
+    );
+  }
 });
 
 test('validateServersConfig: minecraft sub-errors carry the servers[i] prefix', () => {

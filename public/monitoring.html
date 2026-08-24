@@ -604,7 +604,7 @@ footer .prompt { color: var(--green); margin-right: 0.5ch; }
 <script>
 const POLL_INTERVAL_MS = 5000;
 let lastStatsOk = true;
-let planServers = [];
+let mcServers = [];
 
 function formatBytes(n) {
   if (n == null) return '—';
@@ -809,8 +809,8 @@ function buildGuestRow(g, machineName) {
   } else {
     iconEl.remove();
   }
-  for (const s of planServers) {
-    if (s.plan && s.plan.machine === machineName && s.plan.guest === g.name) {
+  for (const s of mcServers) {
+    if (s.machine && s.machine === machineName && s.guest === g.name) {
       const planEl = document.createElement('div');
       planEl.className = 'plan-analytics-link';
       planEl.dataset.serverId = s.id;
@@ -1124,7 +1124,7 @@ document.getElementById('refreshBtn').addEventListener('click', fetchStats);
 fetchStats();
 refreshAlerts();
 setInterval(() => { fetchStats(); refreshAlerts(); }, POLL_INTERVAL_MS);
-fetch('/api/servers').then(r => r.ok ? r.json() : null).then(list => { planServers = Array.isArray(list) ? list : []; }).catch(() => {});
+fetch('/api/servers').then(r => r.ok ? r.json() : null).then(list => { mcServers = Array.isArray(list) ? list : []; }).catch(() => {});
 </script>
 </body>
 </html>
