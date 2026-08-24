@@ -368,6 +368,26 @@ main {
 .wl-remove:hover { color: var(--red); background: rgba(var(--red-rgb), 0.1); }
 .log-toolbar { display: flex; align-items: center; gap: 0.6rem; margin-left: auto; }
 
+/* ── Server nav (cross-links between /plan/<id> pages) ── */
+.server-nav { display: flex; gap: 0.35rem; flex-wrap: wrap; }
+.server-nav a {
+  display: inline-block;
+  border: 1px solid var(--current-line);
+  color: var(--comment);
+  padding: 0.25rem 0.6rem;
+  border-radius: 3px;
+  text-decoration: none;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  transition: border-color 140ms var(--ease-out), color 140ms var(--ease-out), background 140ms var(--ease-out);
+}
+.server-nav a[data-active="true"] { border-color: var(--purple); color: var(--fg); background: var(--bg-alt); }
+@media (hover: hover) and (pointer: fine) {
+  .server-nav a:hover { border-color: var(--purple); color: var(--fg); }
+}
+
 /* ── uPlot Dracula ── */
 .u-wrap { background: transparent !important; }
 .u-axis { color: var(--comment) !important; }
@@ -450,6 +470,7 @@ footer .prompt { color: var(--green); margin-right: 0.5ch; }
 </header>
 <div class="page-subbar">
   <div class="status-chip" id="planStatus" data-status="loading"><span class="dot"></span><span id="planStatusLabel">connecting</span></div>
+  <nav class="server-nav" id="serverNav" aria-label="minecraft servers" hidden></nav>
   <div class="last-poll"><span class="prompt">$</span><span id="lastRefresh">loading&hellip;</span></div>
   <div class="spacer"></div>
   <button class="refresh-btn" id="refreshBtn" title="Refresh">&#x27F3;</button>
@@ -556,6 +577,10 @@ footer .prompt { color: var(--green); margin-right: 0.5ch; }
 <script src="https://cdn.jsdelivr.net/npm/uplot@1.6.31/dist/uPlot.iife.min.js"></script>
 <script>
 const REFRESH_MS = 60000;
+// Dashboard server id from the URL: /plan/<serverId>. Distinct from Plan's own
+// internal server name (serverName below), which is resolved via the Plan API.
+var serverId = (location.pathname.match(/^\/plan\/([a-z0-9_-]+)/) || [])[1] || null;
+var serverLabel = null;
 let serverName = null;
 let unifiedChart = null;
 let rawOnlineData = null;
@@ -620,7 +645,7 @@ function escapeHtml(s) {
 }
 
 async function fetchPlan(path, params = {}) {
-  const url = new URL('/api/plan' + path, location.origin);
+  const url = new URL('/api/servers/' + serverId + '/plan' + path, location.origin);
   for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
   const res = await fetch(url);
   if (!res.ok) {
@@ -955,9 +980,38 @@ async function refresh() {
   showStatus('up');
 }
 
+async function fetchServers() {
+  var res = await fetch('/api/servers');
+  if (!res.ok) throw new Error('failed to load server list (HTTP ' + res.status + ')');
+  return res.json();
+}
+
+function renderServerNav(servers) {
+  var nav = document.getElementById('serverNav');
+  if (!nav || servers.length < 2) return;
+  nav.innerHTML = servers.map(function (s) {
+    return '<a href="/plan/' + encodeURIComponent(s.id) + '" data-active="' +
+      (s.id === serverId ? 'true' : 'false') + '">' + escapeHtml(s.label || s.id) + '</a>';
+  }).join('');
+  nav.hidden = false;
+}
+
 async function init() {
   showStatus('loading');
   try {
+    var servers = await fetchServers();
+    if (!servers.length) throw new Error('no servers configured');
+    if (!serverId || !servers.some(function (s) { return s.id === serverId; })) {
+      // /plan.html opened directly, or a stale/unknown id — go to the first server.
+      location.replace('/plan/' + servers[0].id);
+      return;
+    }
+    var current = servers.find(function (s) { return s.id === serverId; });
+    serverLabel = current.label || current.id;
+    document.title = 'burkii.home / ' + serverLabel.toLowerCase();
+    var brandSub = document.querySelector('.brand-sub');
+    if (brandSub) brandSub.textContent = '/' + serverLabel.toLowerCase();
+    renderServerNav(servers);
     var meta = await fetchPlan('/v1/networkMetadata');
     serverName = meta?.currentServer?.serverName
       || (meta?.servers && meta.servers[0]?.serverName)
@@ -1027,6 +1081,8 @@ setInterval(function () {
 
 /* ── Minecraft admin (console / whitelist / live logs) ── */
 (function () {
+  if (!serverId) return; // init() is redirecting to a server page
+  var mcBase = '/api/servers/' + serverId + '/mc';
   var HISTORY_MAX = 50;
   var CONSOLE_MAX_LINES = 400;
   var LOG_MAX_LINES = 500;
@@ -1073,7 +1129,7 @@ setInterval(function () {
   async function runCommand(cmd) {
     consolePrint('> ' + cmd, 'console-line console-cmd');
     try {
-      var data = await mcFetch('/api/mc/command', { command: cmd });
+      var data = await mcFetch(mcBase + '/command', { command: cmd });
       consolePrint(data.response || '(no output)', 'console-line');
       if (/^\/?whitelist\b/i.test(cmd)) loadWhitelist();
     } catch (err) {
@@ -1127,7 +1183,7 @@ setInterval(function () {
 
   async function loadWhitelist() {
     try {
-      var data = await mcFetch('/api/mc/whitelist');
+      var data = await mcFetch(mcBase + '/whitelist');
       renderWhitelist(data.players);
       setWlStatus(null);
     } catch (err) {
@@ -1146,7 +1202,7 @@ setInterval(function () {
         return;
       }
       try {
-        var data = await mcFetch('/api/mc/whitelist/add', { name: name });
+        var data = await mcFetch(mcBase + '/whitelist/add', { name: name });
         renderWhitelist(data.players);
         setWlStatus(data.result === 'already' ? name + ' is already whitelisted' : null);
         input.value = '';
@@ -1160,7 +1216,7 @@ setInterval(function () {
       var name = btn.dataset.name;
       if (!confirm('Remove ' + name + ' from the whitelist?')) return;
       try {
-        var data = await mcFetch('/api/mc/whitelist/remove', { name: name });
+        var data = await mcFetch(mcBase + '/whitelist/remove', { name: name });
         renderWhitelist(data.players);
         setWlStatus(null);
       } catch (err) {
@@ -1202,7 +1258,7 @@ setInterval(function () {
       if (!logPaused) { logStuckToBottom = true; pane.scrollTop = pane.scrollHeight; }
     });
 
-    mcFetch('/api/mc/logs/recent?lines=200').then(function (data) {
+    mcFetch(mcBase + '/logs/recent?lines=200').then(function (data) {
       pane.innerHTML = '';
       var lines = data.lines || [];
       for (var i = 0; i < lines.length; i++) appendLog(lines[i]);
@@ -1211,7 +1267,7 @@ setInterval(function () {
       setLogStatus(err.message);
     });
 
-    var es = new EventSource('/api/mc/logs/stream');
+    var es = new EventSource(mcBase + '/logs/stream');
     es.addEventListener('line', function (ev) {
       var data;
       try { data = JSON.parse(ev.data); } catch { return; }
@@ -1226,7 +1282,7 @@ setInterval(function () {
     };
   }
 
-  fetch('/api/mc/config')
+  fetch(mcBase + '/config')
     .then(function (r) { return r.ok ? r.json() : null; })
     .then(function (cfg) {
       if (!cfg || !cfg.console) return;

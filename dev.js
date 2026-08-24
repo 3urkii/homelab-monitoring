@@ -27,11 +27,10 @@ const devConfig = {
     { machine: 'proxmox-internal', guest: 'plex-lxc',   url: 'http://127.0.0.1:1/plex',      icon: 'plex-light.svg'   },
     { machine: 'proxmox-internal', guest: 'dashboard',  url: 'http://127.0.0.1:1/dashboard', icon: 'dashboard.svg'    },
   ],
-  plan: {
-    url: 'http://mock',
-    machine: 'proxmox-dmz',
-    guest: 'mc-server',
-  },
+  servers: [
+    { id: 'vanilla',  label: 'Vanilla SMP', plan: { url: 'http://mock', machine: 'proxmox-dmz', guest: 'mc-server' } },
+    { id: 'soulrend', label: 'Soulrend',    plan: { url: 'http://mock', machine: 'proxmox-dmz', guest: 'soulrend-srv' } },
+  ],
 };
 
 function drift(base, range, freq) {
@@ -61,6 +60,7 @@ async function mockProxmox(entry) {
           { vmid: 101, name: 'mc-server',  type: 'lxc',  status: 'running', cpuPct: drift(45, 15, 0.4),  memUsed: 3.2e9, memTotal: 4e9,   diskUsed: 12e9,  diskTotal: 20e9, uptime: 432000, _cumulative: { netRxBytes: 1_500_000 * elapsedSec, netTxBytes: 800_000 * elapsedSec } },
           { vmid: 102, name: 'val-srv',    type: 'lxc',  status: 'running', cpuPct: drift(60, 20, 0.5),  memUsed: 3.6e9, memTotal: 4e9,   diskUsed: 15e9,  diskTotal: 20e9, uptime: 200000, _cumulative: { netRxBytes: 4_000_000 * elapsedSec, netTxBytes: 2_500_000 * elapsedSec } },
           { vmid: 103, name: 'cs2-srv',    type: 'lxc',  status: 'running', cpuPct: drift(30, 15, 0.35), memUsed: 2.1e9, memTotal: 4e9,   diskUsed: 18e9,  diskTotal: 20e9, uptime: 120000, _cumulative: { netRxBytes: 6_000_000 * elapsedSec, netTxBytes: 3_200_000 * elapsedSec } },
+          { vmid: 106, name: 'soulrend-srv', type: 'lxc', status: 'running', cpuPct: drift(55, 20, 0.45), memUsed: 6.1e9, memTotal: 8e9,  diskUsed: 24e9,  diskTotal: 40e9, uptime: 96000,  _cumulative: { netRxBytes: 2_200_000 * elapsedSec, netTxBytes: 1_100_000 * elapsedSec } },
           { vmid: 105, name: 'mealie-lxc', type: 'lxc',  status: 'running', cpuPct: drift(4,  2, 0.3),   memUsed: 340e6, memTotal: 1e9,   diskUsed: 2.4e9, diskTotal: 10e9, uptime: 350000, _cumulative: { netRxBytes: 80_000 * elapsedSec,    netTxBytes: 60_000 * elapsedSec } },
           { vmid: 104, name: 'rust-srv',   type: 'lxc',  status: 'stopped', cpuPct: 0,                   memUsed: 0,     memTotal: 6e9,   diskUsed: 22e9,  diskTotal: 40e9, uptime: 0,      _cumulative: { netRxBytes: 0, netTxBytes: 0 } },
           { vmid: 301, name: 'win-srv',    type: 'qemu', status: 'stopped', cpuPct: 0,                   memUsed: 0,     memTotal: 8e9,   diskUsed: 0,     diskTotal: 0,    uptime: 0,      _cumulative: { netRxBytes: 0, netTxBytes: 0 } },
@@ -138,21 +138,62 @@ app.get('/api/history', (req, res) => {
   }
 });
 
-// ── Plan mock API ──────────────────────────────────────
-app.get('/plan', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'plan.html')));
-app.get('/api/plan-config', (_req, res) => res.json({ machine: devConfig.plan.machine, guest: devConfig.plan.guest }));
+// ── Plan + Minecraft admin mock (per server) ───────────
+const mockServers = new Map([
+  ['vanilla', {
+    planServerName: 'Survival',
+    tpsBase: 19.8,
+    allowlist: DEFAULT_COMMAND_ALLOWLIST,
+    whitelist: ['xXDragonSlayerXx', 'CraftQueen', 'BlockMaster99', 'newbie_steve'],
+    players: ['xXDragonSlayerXx', 'CraftQueen', 'BlockMaster99', 'RedstoneWiz', 'SkyBuilder',
+              'MinerJoe', 'EnderKnight', 'PixelFarmer', 'NetherExplorer', 'newbie_steve'],
+    logFile: '/opt/minecraft/logs/latest.log',
+  }],
+  ['soulrend', {
+    planServerName: 'Soulrend',
+    tpsBase: 18.6,
+    allowlist: [...DEFAULT_COMMAND_ALLOWLIST, 'forge'],
+    whitelist: ['ModdedMage', 'GearGrinder', 'CraftQueen'],
+    players: ['ModdedMage', 'GearGrinder', 'AetherWalker', 'CraftQueen', 'VoidTinkerer',
+              'RuneSmith', 'BossFarmer', 'packtester42'],
+    logFile: '/opt/soulrend/logs/latest.log',
+  }],
+]);
 
-function mockPlanGraph(type) {
+function withMockServer(handler) {
+  return (req, res) => {
+    const ms = mockServers.get(req.params.serverId);
+    if (!ms) return res.status(404).json({ error: 'unknown server' });
+    handler(ms, req, res);
+  };
+}
+
+app.get('/plan', (_req, res) => res.redirect(`/plan/${devConfig.servers[0].id}`));
+app.get('/plan/:serverId', (req, res) => {
+  if (!mockServers.has(req.params.serverId)) return res.status(404).send('unknown server');
+  res.sendFile(path.join(__dirname, 'public', 'plan.html'));
+});
+
+app.get('/api/servers', (_req, res) => {
+  res.json(devConfig.servers.map((s) => ({
+    id: s.id,
+    label: s.label || s.id,
+    plan: { machine: s.plan.machine, guest: s.plan.guest },
+    hasMc: true,
+  })));
+});
+
+function mockPlanGraph(ms, type) {
   const now = Date.now();
   const points = [];
-  var step = type === 'playersOnline' ? 300_000 : 300_000;
+  var step = 300_000;
   for (let t = now - 7 * 24 * 3600_000; t <= now; t += step) {
     const hour = new Date(t).getHours();
     const activity = Math.sin((hour - 6) * Math.PI / 12);
     if (type === 'playersOnline') {
       points.push([t, Math.max(0, Math.round(3 + activity * 4 + (Math.random() - 0.5) * 2))]);
     } else {
-      const tps = Math.min(20, Math.max(14, 19.8 - Math.random() * 0.6 + activity * 0.3));
+      const tps = Math.min(20, Math.max(14, ms.tpsBase - Math.random() * 0.6 + activity * 0.3));
       const players = Math.max(0, Math.round(3 + activity * 4 + (Math.random() - 0.5) * 2));
       const chunks = Math.round(4000 + players * 200 + Math.random() * 300);
       const entities = Math.round(800 + players * 60 + Math.random() * 100);
@@ -168,25 +209,40 @@ function mockPlanGraph(type) {
   };
 }
 
-app.use('/api/plan', (req, res) => {
+function mockPlayersTable(ms) {
+  const now = Date.now();
+  const groups = ['Very Active', 'Very Active', 'Active', 'Active', 'Active', 'Regular', 'Regular', 'Irregular', 'Irregular', 'New'];
+  return {
+    players: ms.players.map((name, i) => ({
+      name,
+      playtime: Math.max(3_600_000, 432_000_000 - i * 46_000_000),
+      sessions: Math.max(2, 89 - i * 9),
+      last_seen: now - (i + 1) * 3_600_000,
+      activity_group: groups[Math.min(i, groups.length - 1)],
+    })),
+  };
+}
+
+app.use('/api/servers/:serverId/plan', withMockServer((ms, req, res) => {
   const p = req.path;
+  const avgTps = ms.tpsBase.toFixed(2);
   if (p === '/v1/networkMetadata') {
     return res.json({
-      currentServer: { serverName: 'Survival', serverUUID: 'mock-uuid-001' },
-      servers: [{ serverName: 'Survival', serverUUID: 'mock-uuid-001' }],
+      currentServer: { serverName: ms.planServerName, serverUUID: `mock-uuid-${ms.planServerName}` },
+      servers: [{ serverName: ms.planServerName, serverUUID: `mock-uuid-${ms.planServerName}` }],
     });
   }
   if (p === '/v1/serverOverview') {
     return res.json({
-      numbers: { total_players: 42, regular_players: 12, online_players: 3 },
-      last_7_days: { unique_players: 18, unique_players_day: '2.57/day', new_players: 4, new_players_day: '0.57/day', average_tps: '19.94', low_tps_spikes: 2, downtime: '0s' },
-      last_30_days: { unique_players: 31, new_players: 9, average_tps: '19.91' },
+      numbers: { total_players: ms.players.length * 4, regular_players: ms.players.length, online_players: 3 },
+      last_7_days: { unique_players: 18, unique_players_day: '2.57/day', new_players: 4, new_players_day: '0.57/day', average_tps: avgTps, low_tps_spikes: 2, downtime: '0s' },
+      last_30_days: { unique_players: 31, new_players: 9, average_tps: avgTps },
     });
   }
   if (p === '/v1/performanceOverview') {
     return res.json({
-      last_7_days: { average_tps: '19.94', low_tps_spikes: 2, average_players: '2.8', average_entities: '946', average_chunks: '4521' },
-      last_30_days: { average_tps: '19.91', low_tps_spikes: 7, average_players: '2.3', average_entities: '912', average_chunks: '4380' },
+      last_7_days: { average_tps: avgTps, low_tps_spikes: 2, average_players: '2.8', average_entities: '946', average_chunks: '4521' },
+      last_30_days: { average_tps: avgTps, low_tps_spikes: 7, average_players: '2.3', average_entities: '912', average_chunks: '4380' },
     });
   }
   if (p === '/v1/playerbaseOverview') {
@@ -195,89 +251,74 @@ app.use('/api/plan', (req, res) => {
     });
   }
   if (p === '/v1/graph') {
-    return res.json(mockPlanGraph(req.query.type));
+    return res.json(mockPlanGraph(ms, req.query.type));
   }
   if (p === '/v1/playersTable') {
-    const now = Date.now();
-    return res.json({ players: [
-      { name: 'xXDragonSlayerXx', playtime: 432000000, sessions: 89,  last_seen: now - 3600000,    activity_group: 'Very Active' },
-      { name: 'CraftQueen',       playtime: 310000000, sessions: 67,  last_seen: now - 7200000,    activity_group: 'Very Active' },
-      { name: 'BlockMaster99',    playtime: 248000000, sessions: 52,  last_seen: now - 14400000,   activity_group: 'Active' },
-      { name: 'RedstoneWiz',      playtime: 198000000, sessions: 41,  last_seen: now - 86400000,   activity_group: 'Active' },
-      { name: 'SkyBuilder',       playtime: 156000000, sessions: 38,  last_seen: now - 43200000,   activity_group: 'Active' },
-      { name: 'MinerJoe',         playtime: 124000000, sessions: 30,  last_seen: now - 172800000,  activity_group: 'Regular' },
-      { name: 'EnderKnight',      playtime: 89000000,  sessions: 22,  last_seen: now - 259200000,  activity_group: 'Regular' },
-      { name: 'PixelFarmer',      playtime: 67000000,  sessions: 15,  last_seen: now - 345600000,  activity_group: 'Irregular' },
-      { name: 'NetherExplorer',   playtime: 45000000,  sessions: 9,   last_seen: now - 604800000,  activity_group: 'Irregular' },
-      { name: 'newbie_steve',     playtime: 3600000,   sessions: 2,   last_seen: now - 86400000,   activity_group: 'New' },
-    ]});
+    return res.json(mockPlayersTable(ms));
   }
   res.status(404).json({ error: 'unknown Plan endpoint' });
-});
+}));
 
-// ── Minecraft admin mock (console / whitelist / logs) ──
-const mockWhitelist = ['xXDragonSlayerXx', 'CraftQueen', 'BlockMaster99', 'newbie_steve'];
-
-function mockRconResponse(cmd) {
+function mockRconResponse(ms, cmd) {
   const first = cmd.split(/\s+/, 1)[0].toLowerCase();
   if (cmd.toLowerCase() === 'whitelist list') {
-    return `There are ${mockWhitelist.length} whitelisted player(s): ${mockWhitelist.join(', ')}`;
+    return `There are ${ms.whitelist.length} whitelisted player(s): ${ms.whitelist.join(', ')}`;
   }
-  if (first === 'list') return 'There are 3 of a max of 20 players online: xXDragonSlayerXx, CraftQueen, newbie_steve';
-  if (first === 'tps') return 'TPS from last 1m, 5m, 15m: 19.98, 19.99, 20.0';
+  if (first === 'list') return `There are 3 of a max of 20 players online: ${ms.players.slice(0, 3).join(', ')}`;
+  if (first === 'tps') return `TPS from last 1m, 5m, 15m: ${ms.tpsBase.toFixed(2)}, ${ms.tpsBase.toFixed(2)}, ${(ms.tpsBase + 0.1).toFixed(1)}`;
+  if (first === 'forge') return `Overall: Mean tick time: 12.314 ms. Mean TPS: ${ms.tpsBase.toFixed(3)}`;
   if (first === 'say' || first === 'msg' || first === 'tell') return '';
   if (first === 'seed') return 'Seed: [-4218267558469834081]';
   if (first === 'difficulty') return 'The difficulty is Normal';
   return `(mock) executed: ${cmd}`;
 }
 
-app.get('/api/mc/config', (_req, res) => {
-  res.json({ console: true, whitelist: true, logs: true, allowlist: DEFAULT_COMMAND_ALLOWLIST });
-});
+app.get('/api/servers/:serverId/mc/config', withMockServer((ms, _req, res) => {
+  res.json({ console: true, whitelist: true, logs: true, allowlist: ms.allowlist });
+}));
 
-app.post('/api/mc/command', express.json({ limit: '64kb' }), (req, res) => {
-  const check = checkCommand((req.body || {}).command, DEFAULT_COMMAND_ALLOWLIST);
+app.post('/api/servers/:serverId/mc/command', express.json({ limit: '64kb' }), withMockServer((ms, req, res) => {
+  const check = checkCommand((req.body || {}).command, ms.allowlist);
   if (!check.ok) return res.status(400).json({ error: check.error });
-  setTimeout(() => res.json({ command: check.command, response: mockRconResponse(check.command) }), 150);
-});
+  setTimeout(() => res.json({ command: check.command, response: mockRconResponse(ms, check.command) }), 150);
+}));
 
-app.get('/api/mc/whitelist', (_req, res) => res.json({ players: [...mockWhitelist] }));
+app.get('/api/servers/:serverId/mc/whitelist', withMockServer((ms, _req, res) => {
+  res.json({ players: [...ms.whitelist] });
+}));
 
-app.post('/api/mc/whitelist/add', express.json({ limit: '64kb' }), (req, res) => {
+app.post('/api/servers/:serverId/mc/whitelist/add', express.json({ limit: '64kb' }), withMockServer((ms, req, res) => {
   const name = (req.body || {}).name;
   if (!isValidUsername(name)) return res.status(400).json({ error: 'name must match ^[A-Za-z0-9_]{3,16}$' });
-  const already = mockWhitelist.includes(name);
-  if (!already) mockWhitelist.push(name);
+  const already = ms.whitelist.includes(name);
+  if (!already) ms.whitelist.push(name);
   res.json({
     ok: true,
     result: already ? 'already' : 'added',
     response: already ? 'Player is already whitelisted' : `Added ${name} to the whitelist`,
-    players: [...mockWhitelist],
+    players: [...ms.whitelist],
   });
-});
+}));
 
-app.post('/api/mc/whitelist/remove', express.json({ limit: '64kb' }), (req, res) => {
+app.post('/api/servers/:serverId/mc/whitelist/remove', express.json({ limit: '64kb' }), withMockServer((ms, req, res) => {
   const name = (req.body || {}).name;
   if (!isValidUsername(name)) return res.status(400).json({ error: 'name must match ^[A-Za-z0-9_]{3,16}$' });
-  const idx = mockWhitelist.indexOf(name);
-  if (idx >= 0) mockWhitelist.splice(idx, 1);
+  const idx = ms.whitelist.indexOf(name);
+  if (idx >= 0) ms.whitelist.splice(idx, 1);
   res.json({
     ok: true,
     result: idx >= 0 ? 'removed' : 'not_found',
     response: idx >= 0 ? `Removed ${name} from the whitelist` : 'Player is not whitelisted',
-    players: [...mockWhitelist],
+    players: [...ms.whitelist],
   });
-});
+}));
 
-const MOCK_LOG_PLAYERS = ['xXDragonSlayerXx', 'CraftQueen', 'BlockMaster99', 'newbie_steve', 'RedstoneWiz'];
-let mockLogSeq = 0;
-
-function mockLogLine() {
+function mockLogLine(ms) {
   const now = new Date();
   const hh = String(now.getHours()).padStart(2, '0');
   const mm = String(now.getMinutes()).padStart(2, '0');
   const ss = String(now.getSeconds()).padStart(2, '0');
-  const p = MOCK_LOG_PLAYERS[mockLogSeq % MOCK_LOG_PLAYERS.length];
+  const p = ms.players[Math.floor(Math.random() * ms.players.length)];
   const templates = [
     `[${hh}:${mm}:${ss}] [Server thread/INFO]: <${p}> anyone near spawn?`,
     `[${hh}:${mm}:${ss}] [Server thread/INFO]: ${p} joined the game`,
@@ -286,27 +327,28 @@ function mockLogLine() {
     `[${hh}:${mm}:${ss}] [Server thread/INFO]: Saving the game (this may take a moment!)`,
     `[${hh}:${mm}:${ss}] [Server thread/WARN]: Can't keep up! Is the server overloaded? Running 2043ms or 40 ticks behind`,
   ];
-  mockLogSeq++;
   return templates[Math.floor(Math.random() * templates.length)];
 }
 
-const mockLogRing = Array.from({ length: 200 }, () => mockLogLine());
-const mcLogBroker = new SseBroker();
-setInterval(() => {
-  const line = mockLogLine();
-  mockLogRing.push(line);
-  if (mockLogRing.length > 2000) mockLogRing.shift();
-  mcLogBroker.broadcast('line', { ts: Date.now(), line });
-}, 1500 + Math.floor(Math.random() * 2500));
+for (const ms of mockServers.values()) {
+  ms.logRing = Array.from({ length: 200 }, () => mockLogLine(ms));
+  ms.logBroker = new SseBroker();
+  setInterval(() => {
+    const line = mockLogLine(ms);
+    ms.logRing.push(line);
+    if (ms.logRing.length > 2000) ms.logRing.shift();
+    ms.logBroker.broadcast('line', { ts: Date.now(), line });
+  }, 1500 + Math.floor(Math.random() * 2500));
+}
 
-app.get('/api/mc/logs/recent', (req, res) => {
+app.get('/api/servers/:serverId/mc/logs/recent', withMockServer((ms, req, res) => {
   const n = Math.max(1, Math.min(1000, Number(req.query.lines) || 200));
-  res.json({ file: '/opt/minecraft/logs/latest.log', lines: mockLogRing.slice(-n) });
-});
+  res.json({ file: ms.logFile, lines: ms.logRing.slice(-n) });
+}));
 
-app.get('/api/mc/logs/stream', (_req, res) => {
-  mcLogBroker.addClient(res);
-});
+app.get('/api/servers/:serverId/mc/logs/stream', withMockServer((ms, _req, res) => {
+  ms.logBroker.addClient(res);
+}));
 
 // ── Page routes (clean URLs) ───────────────────────────
 app.get('/monitoring', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'monitoring.html')));

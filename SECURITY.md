@@ -28,20 +28,25 @@ plaintext admin panel.
   This runs through your full Assist pipeline (including any LLM agent you've
   wired up). Anyone who can reach `/api/chat` can issue commands as if they
   were the configured token.
-- `GET /api/plan/*` — proxies to your Plan Player Analytics instance.
-- `POST /api/mc/command` — runs allowlisted console commands on the Minecraft
-  server over RCON. Anyone who can reach it can kick players, edit the
-  whitelist, broadcast chat, and run every other allowlisted command. The
-  command allowlist is the **only** blast-radius control: never add `op`,
-  `stop`, `ban`, `gamemode`, or `execute` to `minecraft.commandAllowlist`.
-  The RCON password lives only in gitignored `config.js` and never reaches
-  the browser.
-- `GET /api/mc/whitelist` + `POST /api/mc/whitelist/{add,remove}` — read and
-  mutate the Minecraft whitelist over RCON.
-- `GET /api/mc/logs/recent` + `GET /api/mc/logs/stream` — recent and live
-  Minecraft server log lines relayed from the mc-log-agent. Log lines include
-  player IP addresses on join. The agent itself is also unauthenticated —
-  firewall its port (default 8127) so only the dashboard host can reach it
+- `GET /api/servers` — the configured Minecraft server list (ids, labels,
+  which Proxmox machine/guest each runs on).
+- `GET /api/servers/:id/plan/*` — proxies to that server's Plan Player
+  Analytics instance.
+- `POST /api/servers/:id/mc/command` — runs allowlisted console commands on
+  that Minecraft server over RCON. Anyone who can reach it can kick players,
+  edit the whitelist, broadcast chat, and run every other allowlisted
+  command. The per-server command allowlist is the **only** blast-radius
+  control: never add `op`, `stop`, `ban`, `gamemode`, or `execute` to
+  `servers[].minecraft.commandAllowlist`. RCON passwords live only in
+  gitignored `config.js` and never reach the browser.
+- `GET /api/servers/:id/mc/whitelist` +
+  `POST /api/servers/:id/mc/whitelist/{add,remove}` — read and mutate that
+  server's Minecraft whitelist over RCON.
+- `GET /api/servers/:id/mc/logs/recent` + `GET /api/servers/:id/mc/logs/stream`
+  — recent and live Minecraft server log lines relayed from that server's
+  mc-log-agent. Log lines include player IP addresses on join. The agents
+  themselves are also unauthenticated — firewall their ports (default 8127,
+  one port per server) so only the dashboard host can reach them
   (see `tools/mc-log-agent/README.md`).
 - `GET /api/weather` — proxies Open-Meteo (public, no auth).
 

@@ -103,29 +103,62 @@ module.exports = {
   //   unit: "fahrenheit",   // "celsius" | "fahrenheit"
   // },
 
-  // Plan Player Analytics integration — adds a Minecraft analytics page.
-  // Set machine/guest to the VM or LXC running the Minecraft server.
-  plan: {
-    url: 'http://REPLACE_ME:8804',  // e.g. "http://10.0.20.87:8804"
-    machine: 'REPLACE_ME',   // machines[].name of the Proxmox host
-    guest: 'REPLACE_ME',     // guest name of the Minecraft VM/LXC
-  },
-
-  // Minecraft admin — adds console / whitelist / live-log sections to the /plan page.
-  // Requires the `plan` block above. Enable RCON in server.properties first:
-  //   enable-rcon=true
-  //   rcon.port=25575
-  //   rcon.password=<long random string>
-  // logAgent is optional: run tools/mc-log-agent on the Minecraft host (see its README)
-  // to get the live-log section. Omit it to skip logs.
-  // commandAllowlist (optional) REPLACES the default allowed console first-words:
-  //   whitelist, list, say, msg, tell, kick, tps, seed, banlist, difficulty, time, weather, save-all
-  // Never add op, stop, ban, gamemode, or execute — see SECURITY.md.
-  // minecraft: {
-  //   rcon: { host: "REPLACE_ME", port: 25575, password: "REPLACE_ME" },
-  //   logAgent: { url: "http://REPLACE_ME:8127" },
-  //   // commandAllowlist: ["whitelist", "list", "say", "tps"],
-  // },
+  // Minecraft servers — each entry gets its own analytics + admin page at
+  // /plan/<id> (Plan Player Analytics, RCON console, whitelist manager, live
+  // logs). Any number of servers is supported; they render as tabs on each
+  // /plan page and as per-server "<label> analytics →" links on the matching
+  // guest rows of /monitoring.
+  //
+  // Per entry:
+  // - id     — URL-safe slug (lowercase letters, digits, '_', '-'), unique;
+  //            becomes the route path: /plan/<id>
+  // - label  — display name shown in the UI
+  // - plan   — required. Plan web-server URL plus the Proxmox machine/guest
+  //            running this Minecraft server (links it to the monitoring page).
+  //            Works with Plan on Paper/Spigot AND Plan on Forge/Fabric.
+  // - minecraft — optional admin block (console/whitelist/logs on the page):
+  //     rcon: enable in server.properties (enable-rcon, rcon.port, rcon.password).
+  //           Servers sharing a host need distinct RCON ports.
+  //     logAgent: optional; run one tools/mc-log-agent instance per server on
+  //           the Minecraft host (distinct ports), see its README.
+  //     commandAllowlist: optional; REPLACES the default allowed console
+  //           first-words (whitelist, list, say, msg, tell, kick, tps, seed,
+  //           banlist, difficulty, time, weather, save-all). Never add op,
+  //           stop, ban, gamemode, or execute — see SECURITY.md.
+  //
+  // Legacy note: the old top-level `plan:` + `minecraft:` blocks still work —
+  // they auto-migrate at startup to a one-element servers array with
+  // id "default" (page at /plan/default).
+  servers: [
+    {
+      id: 'vanilla',
+      label: 'Vanilla SMP',
+      plan: {
+        url: 'http://REPLACE_ME:8804',  // e.g. "http://10.0.20.87:8804"
+        machine: 'REPLACE_ME',   // machines[].name of the Proxmox host
+        guest: 'REPLACE_ME',     // guest name of the Minecraft VM/LXC
+      },
+      // minecraft: {
+      //   rcon: { host: "REPLACE_ME", port: 25575, password: "REPLACE_ME" },
+      //   logAgent: { url: "http://REPLACE_ME:8127" },
+      //   // commandAllowlist: ["whitelist", "list", "say", "tps"],
+      // },
+    },
+    // {
+    //   id: 'soulrend',
+    //   label: 'Soulrend',
+    //   plan: {
+    //     url: 'http://REPLACE_ME:8805',
+    //     machine: 'REPLACE_ME',
+    //     guest: 'REPLACE_ME',
+    //   },
+    //   minecraft: {
+    //     rcon: { host: "REPLACE_ME", port: 25576, password: "REPLACE_ME" },
+    //     logAgent: { url: "http://REPLACE_ME:8128" },
+    //     commandAllowlist: ["whitelist", "list", "say", "tps", "forge"],
+    //   },
+    // },
+  ],
 
   // Network tile on the landing page — clickable card that deep-links to the
   // UniFi mobile app on iOS/Android, falling back to the controller URL on desktop.

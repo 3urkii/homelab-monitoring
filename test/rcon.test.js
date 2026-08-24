@@ -154,6 +154,74 @@ test('rconExec: multi-packet response is concatenated', async () => {
   }
 });
 
+test('rconExec: commands to the same server never overlap (per-key queue serializes)', async () => {
+  let active = 0;
+  let maxActive = 0;
+  const srv = await startFakeRcon((socket, p) => {
+    if (p.type === TYPE_AUTH) return void socket.write(encodePacket(p.id, 2, ''));
+    if (p.type === TYPE_EXEC) {
+      active++;
+      maxActive = Math.max(maxActive, active);
+      setTimeout(() => {
+        active--;
+        socket.write(encodePacket(p.id, TYPE_RESPONSE, `ran: ${p.body}`));
+      }, 80);
+    }
+  });
+  try {
+    const opts = { host: '127.0.0.1', port: srv.port, password: PASSWORD };
+    const results = await Promise.all([
+      rconExec(opts, 'one'),
+      rconExec(opts, 'two'),
+      rconExec(opts, 'three'),
+    ]);
+    assert.deepEqual(results, ['ran: one', 'ran: two', 'ran: three']);
+    assert.equal(maxActive, 1);
+  } finally {
+    await srv.close();
+  }
+});
+
+test('rconExec: different servers have independent queues', async () => {
+  const order = [];
+  const slow = await startFakeRcon((socket, p) => {
+    if (p.type === TYPE_AUTH) return void socket.write(encodePacket(p.id, 2, ''));
+    if (p.type === TYPE_EXEC) {
+      setTimeout(() => socket.write(encodePacket(p.id, TYPE_RESPONSE, 'slow done')), 500);
+    }
+  });
+  const fast = await startFakeRcon(standardHandler);
+  try {
+    // With the old global queue the fast command would wait behind the slow
+    // one; with per-server queues it completes first.
+    const a = rconExec({ host: '127.0.0.1', port: slow.port, password: PASSWORD }, 'backup')
+      .then((r) => { order.push('slow'); return r; });
+    const b = rconExec({ host: '127.0.0.1', port: fast.port, password: PASSWORD }, 'list')
+      .then((r) => { order.push('fast'); return r; });
+    const [slowOut, fastOut] = await Promise.all([a, b]);
+    assert.equal(slowOut, 'slow done');
+    assert.equal(fastOut, 'ran: list');
+    assert.deepEqual(order, ['fast', 'slow']);
+  } finally {
+    await slow.close();
+    await fast.close();
+  }
+});
+
+test('rconExec: a failed command does not wedge its server queue', async () => {
+  const srv = await startFakeRcon(standardHandler);
+  try {
+    await assert.rejects(
+      rconExec({ host: '127.0.0.1', port: srv.port, password: 'nope' }, 'list'),
+      (err) => err.code === 'rcon_auth_failed',
+    );
+    const out = await rconExec({ host: '127.0.0.1', port: srv.port, password: PASSWORD }, 'list');
+    assert.equal(out, 'ran: list');
+  } finally {
+    await srv.close();
+  }
+});
+
 test('rconExec: ignores pre-auth RESPONSE_VALUE packet (Source servers)', async () => {
   const srv = await startFakeRcon((socket, p) => {
     if (p.type === TYPE_AUTH) {
