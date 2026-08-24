@@ -195,16 +195,90 @@ Replies include a tap-to-hear speaker button that uses browser speech synthesis 
 - `voice` — optional TTS BCP-47 hint (default `"es-ES"`)
 - `temperature` — optional (default `0.7`)
 
-## Minecraft admin (console, whitelist, live logs)
+## Minecraft servers (analytics, console, whitelist, live logs)
 
-Set `config.minecraft` (requires the `plan` block) to add three admin sections
-to the `/plan` page: an allowlisted RCON console, a whitelist manager, and a
-live server-log tail. The RCON password stays server-side; the browser only
-ever talks to the dashboard.
+The `servers` array in `config.js` mounts one analytics + admin page per
+Minecraft server at `/plan/<id>` — charts, and optionally an allowlisted
+RCON console, a whitelist manager, and a live server-log tail. Any number of
+servers is supported; each page shows a small nav to switch between them,
+and `/monitoring` renders a "`<label>` analytics →" link on each server's
+guest row. RCON passwords stay server-side; the browser only ever talks to
+the dashboard.
 
-**1. Enable RCON on the Minecraft server**
+Charts come from one of two sources per server:
 
-In the server's `server.properties`:
+- **Plan Player Analytics** (`plan` block) — full analytics: playerbase
+  groups, per-player playtime/sessions table, world metrics. Plan runs on
+  **Paper/Spigot/Folia, Fabric, and Sponge** — there is **no native Forge
+  build** ([supported platforms](https://github.com/plan-player-analytics/Plan)),
+  so Forge modpacks can't use this.
+- **Built-in RCON sampler** (no `plan` block) — the dashboard polls the
+  server over its existing RCON connection every 30s (`list` for players
+  online, `forge tps` or `tps` for TPS/tick time — auto-detected) and stores
+  the samples in its own SQLite, charting players online, TPS, and tick time
+  with the usual range picker. Works on any server with RCON, including
+  Forge packs; no mods added. No per-player analytics.
+
+```js
+servers: [
+  {
+    id: 'vanilla',              // URL-safe slug → /plan/vanilla
+    label: 'Vanilla SMP',
+    machine: 'proxmox-dmz',     // optional — links the page to the
+    guest: 'mc-server',         //   matching /monitoring guest row
+    plan: { url: 'http://10.0.20.87:8804' },
+    minecraft: {                // optional — console/whitelist/logs
+      rcon: { host: '10.0.20.87', port: 25575, password: '...' },
+      logAgent: { url: 'http://10.0.20.87:8127' },   // optional — live logs
+    },
+  },
+  {
+    id: 'soulrend',             // a Forge modded pack — no Plan:
+    label: 'Soulrend',          //   charts come from the RCON sampler
+    machine: 'proxmox-dmz',
+    guest: 'soulrend-srv',
+    minecraft: {
+      rcon: { host: '10.0.20.88', port: 25576, password: '...' },
+      logAgent: { url: 'http://10.0.20.88:8128' },
+      commandAllowlist: ['whitelist', 'list', 'say', 'tps', 'forge'],
+      // sampler: { intervalMs: 30000, tpsCommand: 'forge tps' },  // optional tuning
+      // sampler: false,                                           // opt out
+    },
+  },
+],
+```
+
+Each entry needs `plan` and/or `minecraft`. The sampler runs automatically
+for entries that have `minecraft.rcon` but no `plan`; set
+`minecraft.sampler: false` to disable it. Sampler history follows the same
+30-day retention as the machine metrics.
+
+**Legacy config**: the old single-server top-level `plan:` + `minecraft:`
+blocks auto-migrate at startup into a one-element `servers` array with id
+`default` (page at `/plan/default`). No action needed, but new installs
+should use `servers`.
+
+### Per-server setup
+
+**1. Charts: install Plan — or rely on the RCON sampler**
+
+- **Paper/Spigot/Folia**: drop the [Plan](https://github.com/plan-player-analytics/Plan)
+  plugin jar into `plugins/`. **Fabric/Sponge**: use the matching Plan
+  platform jar.
+- **Forge packs** (e.g. Soulrend): Plan has no Forge build — omit the `plan`
+  block and the dashboard's RCON sampler provides the charts instead
+  (players online + TPS + tick time; TPS via Forge's built-in `forge tps`
+  command). Nothing to install on the server beyond RCON.
+
+If using Plan: note the web-server port in Plan's config (default 8804) and
+set `plan.url` accordingly. If two Minecraft servers run on the **same
+host**, give each Plan instance a distinct port. `machine`/`guest` on the
+entry are the Proxmox `machines[].name` and guest name of the VM/LXC running
+that server — they link the analytics page to its `/monitoring` guest row.
+
+**2. Enable RCON on the Minecraft server**
+
+In the server's `server.properties` (Forge servers use the same file):
 
 ```properties
 enable-rcon=true
@@ -212,22 +286,9 @@ rcon.port=25575
 rcon.password=<long random string>
 ```
 
-Restart the Minecraft server. Verify the dashboard host can reach the port:
-`nc -z <mc-host> 25575`.
-
-**2. Configure the dashboard**
-
-Uncomment the `minecraft` block in `config.js`:
-
-```js
-minecraft: {
-  rcon: { host: "10.0.20.87", port: 25575, password: "..." },
-  logAgent: { url: "http://10.0.20.87:8127" },   // optional — live logs
-  // commandAllowlist: ["whitelist", "list", "say", "tps"],  // optional override
-},
-```
-
-Restart the dashboard. The console and whitelist sections appear on `/plan`.
+Servers sharing a host need distinct `rcon.port` values (e.g. 25575 and
+25576). Restart the Minecraft server, then verify the dashboard host can
+reach the port: `nc -z <mc-host> 25575`.
 
 **3. (Optional) Install the log agent for live logs**
 
@@ -235,18 +296,27 @@ RCON cannot stream logs, so the live-log section is fed by a tiny
 zero-dependency agent that runs on the Minecraft host and tails
 `logs/latest.log` (it survives log rotation). Install steps in
 `tools/mc-log-agent/README.md`; verify with `curl http://<mc-host>:8127/healthz`.
-The dashboard holds a single connection to the agent and fans lines out to
-all open tabs.
+Run **one agent instance per server**: copy the systemd unit, point each at
+its server's log directory, and give each a distinct port (e.g. 8127 and
+8128). The dashboard holds a single connection per agent and fans lines out
+to all open tabs.
+
+**4. Add the entry to `servers` in `config.js`** and restart the dashboard.
+The new page appears at `/plan/<id>` and in the nav of every other server
+page.
 
 **Console notes**
 
-- Only the first word of a command is checked against the allowlist (default:
-  `whitelist, list, say, msg, tell, kick, tps, seed, banlist, difficulty,
-  time, weather, save-all`). Everything else is rejected server-side —
-  see SECURITY.md before extending the list.
-- `tps` is Paper/Spigot-only; vanilla replies `Unknown command`.
+- Only the first word of a command is checked against the per-server
+  allowlist (default: `whitelist, list, say, msg, tell, kick, tps, seed,
+  banlist, difficulty, time, weather, save-all`). Everything else is
+  rejected server-side — see SECURITY.md before extending the list.
+- `tps` is Paper/Spigot-only; vanilla replies `Unknown command`. On Forge,
+  add `forge` to that server's `commandAllowlist` and use `forge tps`.
 - Vanilla truncates RCON responses at 4096 bytes, so a very long
   `whitelist list` may be cut short.
+- Commands to the same server are serialized (vanilla's RCON misbehaves
+  under concurrency); different servers execute independently.
 
 ## Known limitations
 

@@ -368,6 +368,26 @@ main {
 .wl-remove:hover { color: var(--red); background: rgba(var(--red-rgb), 0.1); }
 .log-toolbar { display: flex; align-items: center; gap: 0.6rem; margin-left: auto; }
 
+/* ── Server nav (cross-links between /plan/<id> pages) ── */
+.server-nav { display: flex; gap: 0.35rem; flex-wrap: wrap; }
+.server-nav a {
+  display: inline-block;
+  border: 1px solid var(--current-line);
+  color: var(--comment);
+  padding: 0.25rem 0.6rem;
+  border-radius: 3px;
+  text-decoration: none;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  transition: border-color 140ms var(--ease-out), color 140ms var(--ease-out), background 140ms var(--ease-out);
+}
+.server-nav a[data-active="true"] { border-color: var(--purple); color: var(--fg); background: var(--bg-alt); }
+@media (hover: hover) and (pointer: fine) {
+  .server-nav a:hover { border-color: var(--purple); color: var(--fg); }
+}
+
 /* ── uPlot Dracula ── */
 .u-wrap { background: transparent !important; }
 .u-axis { color: var(--comment) !important; }
@@ -450,6 +470,7 @@ footer .prompt { color: var(--green); margin-right: 0.5ch; }
 </header>
 <div class="page-subbar">
   <div class="status-chip" id="planStatus" data-status="loading"><span class="dot"></span><span id="planStatusLabel">connecting</span></div>
+  <nav class="server-nav" id="serverNav" aria-label="minecraft servers" hidden></nav>
   <div class="last-poll"><span class="prompt">$</span><span id="lastRefresh">loading&hellip;</span></div>
   <div class="spacer"></div>
   <button class="refresh-btn" id="refreshBtn" title="Refresh">&#x27F3;</button>
@@ -490,12 +511,12 @@ footer .prompt { color: var(--green); margin-right: 0.5ch; }
     </div>
   </section>
 
-  <section>
+  <section id="playerbaseSection">
     <div class="section-title"><span class="accent">&gt;</span>PLAYERBASE</div>
     <div class="playerbase-grid" id="playerbaseGrid"></div>
   </section>
 
-  <section>
+  <section id="playersSection">
     <div class="section-title"><span class="accent">&gt;</span>PLAYERS</div>
     <div class="table-wrapper">
       <table class="players-table">
@@ -552,10 +573,17 @@ footer .prompt { color: var(--green); margin-right: 0.5ch; }
     </div>
   </section>
 </main>
-<footer><span class="prompt">$</span>minecraft analytics via plan &mdash; refreshing every 60s</footer>
+<footer><span class="prompt">$</span><span id="footerText">minecraft analytics &mdash; refreshing every 60s</span></footer>
 <script src="https://cdn.jsdelivr.net/npm/uplot@1.6.31/dist/uPlot.iife.min.js"></script>
 <script>
 const REFRESH_MS = 60000;
+// Dashboard server id from the URL: /plan/<serverId>. Distinct from Plan's own
+// internal server name (serverName below), which is resolved via the Plan API.
+var serverId = (location.pathname.match(/^\/plan\/([a-z0-9_-]+)/) || [])[1] || null;
+var serverLabel = null;
+// true → charts come from the Plan API; false → from the dashboard's RCON
+// sampler (/mc/stats/*), for servers Plan can't run on (e.g. Forge packs).
+var hasPlan = true;
 let serverName = null;
 let unifiedChart = null;
 let rawOnlineData = null;
@@ -573,6 +601,7 @@ var METRIC_DEFS = [
   { key: 'chunks',        label: 'chunks',  color: '#8be9fd', fill: null,                    width: 1.5, scale: 'count' },
   { key: 'disk',          label: 'disk',    color: '#ff5555', fill: null,                    width: 1.5, scale: 'disk' },
   { key: 'ping',          label: 'ping',    color: '#f8f8f2', fill: null,                    width: 1.5, scale: 'ping', altKeys: ['avgPing'] },
+  { key: 'tickMs',        label: 'tick ms', color: '#ffb86c', fill: null,                    width: 1.5, scale: 'ping' },
 ];
 
 var PRESETS = {
@@ -580,6 +609,7 @@ var PRESETS = {
   players: ['playersOnline', 'tps'],
   perf:    ['tps', 'cpu', 'ram'],
   world:   ['entities', 'chunks', 'playersOnline'],
+  rcon:    ['playersOnline', 'tps', 'tickMs'],
 };
 
 function rollingMean(arr, window) {
@@ -620,7 +650,7 @@ function escapeHtml(s) {
 }
 
 async function fetchPlan(path, params = {}) {
-  const url = new URL('/api/plan' + path, location.origin);
+  const url = new URL('/api/servers/' + serverId + '/plan' + path, location.origin);
   for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
   const res = await fetch(url);
   if (!res.ok) {
@@ -955,9 +985,112 @@ async function refresh() {
   showStatus('up');
 }
 
+async function fetchServers() {
+  var res = await fetch('/api/servers');
+  if (!res.ok) throw new Error('failed to load server list (HTTP ' + res.status + ')');
+  return res.json();
+}
+
+/* ── RCON-sampler mode (servers without Plan) ── */
+function renderRconOverview(now, hist) {
+  var values = (hist && hist.values) || [];
+  var lastRow = values.length ? values[values.length - 1] : null;
+  var s = now && now.sample
+    ? now.sample
+    : (lastRow ? { players: lastRow[1], tps: lastRow[2], tickMs: lastRow[3] } : {});
+
+  var tpsSum = 0, tpsN = 0, peak = null;
+  for (var i = 0; i < values.length; i++) {
+    if (values[i][2] != null) { tpsSum += values[i][2]; tpsN++; }
+    if (values[i][1] != null && (peak == null || values[i][1] > peak)) peak = values[i][1];
+  }
+  var avgTps = tpsN ? tpsSum / tpsN : null;
+  var rangeLabel = (hist && hist.range) || chartRange;
+
+  var cards = [
+    { label: 'Online Now', value: s.players ?? '—', style: (s.players ?? 0) > 0 ? 'color:var(--green)' : '' },
+    { label: 'TPS',        value: s.tps != null ? s.tps.toFixed(2) : '—', style: tpsStyle(s.tps) },
+    { label: 'Tick Time',  value: s.tickMs != null ? s.tickMs.toFixed(1) : '—', sub: s.tickMs != null ? 'ms mean' : null },
+    { label: 'Peak Players (' + rangeLabel + ')', value: peak ?? '—' },
+    { label: 'Avg TPS (' + rangeLabel + ')', value: avgTps != null ? avgTps.toFixed(2) : '—', style: tpsStyle(avgTps) },
+  ];
+  document.getElementById('overviewCards').innerHTML = cards.map(function (c) {
+    return '<div class="stat-card">' +
+      '<div class="stat-card-label">' + c.label + '</div>' +
+      '<div class="stat-card-value" style="' + (c.style || '') + '">' + c.value + '</div>' +
+      (c.sub ? '<div class="stat-card-sub">' + escapeHtml(String(c.sub)) + '</div>' : '') +
+      '</div>';
+  }).join('');
+}
+
+async function refreshRcon() {
+  var base = '/api/servers/' + serverId + '/mc/stats';
+  var res = await fetch(base + '/history?range=' + chartRange);
+  if (!res.ok) {
+    var body = await res.json().catch(function () { return {}; });
+    throw new Error(body.error || 'HTTP ' + res.status);
+  }
+  var hist = await res.json();
+  rawPerfData = { keys: hist.keys, values: hist.values };
+  rawOnlineData = null;
+  renderUnifiedChart();
+
+  var now = null;
+  try {
+    var nowRes = await fetch(base + '/now');
+    if (nowRes.ok) now = await nowRes.json();
+  } catch (e) { /* cards fall back to the last history row */ }
+  renderRconOverview(now, hist);
+
+  document.getElementById('lastRefresh').textContent = 'last refresh ' + new Date().toLocaleTimeString();
+  if (now && now.online === false) {
+    showError('sampler offline — is the server up?');
+    showStatus('down');
+  } else {
+    hideError();
+    showStatus('up');
+  }
+}
+
+function renderServerNav(servers) {
+  var nav = document.getElementById('serverNav');
+  if (!nav || servers.length < 2) return;
+  nav.innerHTML = servers.map(function (s) {
+    return '<a href="/plan/' + encodeURIComponent(s.id) + '" data-active="' +
+      (s.id === serverId ? 'true' : 'false') + '">' + escapeHtml(s.label || s.id) + '</a>';
+  }).join('');
+  nav.hidden = false;
+}
+
 async function init() {
   showStatus('loading');
   try {
+    var servers = await fetchServers();
+    if (!servers.length) throw new Error('no servers configured');
+    if (!serverId || !servers.some(function (s) { return s.id === serverId; })) {
+      // /plan.html opened directly, or a stale/unknown id — go to the first server.
+      location.replace('/plan/' + servers[0].id);
+      return;
+    }
+    var current = servers.find(function (s) { return s.id === serverId; });
+    serverLabel = current.label || current.id;
+    hasPlan = !!current.hasPlan;
+    document.title = 'burkii.home / ' + serverLabel.toLowerCase();
+    var brandSub = document.querySelector('.brand-sub');
+    if (brandSub) brandSub.textContent = '/' + serverLabel.toLowerCase();
+    renderServerNav(servers);
+    if (!hasPlan) {
+      // RCON-sampler mode: no Plan behind this server — hide the Plan-only
+      // sections and drive the chart from /mc/stats/* instead.
+      activePreset = 'rcon';
+      document.getElementById('presetPicker').style.display = 'none';
+      document.getElementById('playerbaseSection').hidden = true;
+      document.getElementById('playersSection').hidden = true;
+      document.getElementById('footerText').textContent = 'minecraft charts via rcon sampler — refreshing every 60s';
+      await refreshRcon();
+      return;
+    }
+    document.getElementById('footerText').textContent = 'minecraft analytics via plan — refreshing every 60s';
     var meta = await fetchPlan('/v1/networkMetadata');
     serverName = meta?.currentServer?.serverName
       || (meta?.servers && meta.servers[0]?.serverName)
@@ -990,7 +1123,12 @@ document.getElementById('rangePicker').addEventListener('click', function (e) {
   document.querySelectorAll('.range-btn').forEach(function (b) {
     b.dataset.active = b.dataset.range === chartRange ? 'true' : 'false';
   });
-  renderUnifiedChart();
+  if (hasPlan) {
+    renderUnifiedChart();
+  } else {
+    // Sampler history is fetched per range (long ranges come back bucketed).
+    refreshRcon().catch(function (err) { showError(err.message); showStatus('down'); });
+  }
 });
 
 document.getElementById('presetPicker').addEventListener('click', function (e) {
@@ -1015,18 +1153,26 @@ document.getElementById('unifiedChart').addEventListener('dblclick', function ()
   unifiedChart.setScale('x', { min: xData[0], max: xData[xData.length - 1] });
 });
 
+function doRefresh() {
+  if (!hasPlan && serverId) {
+    refreshRcon().catch(function (e) { showError(e.message); showStatus('down'); });
+  } else if (serverName) {
+    refresh().catch(function (e) { showError(e.message); showStatus('down'); });
+  }
+}
+
 document.getElementById('refreshBtn').addEventListener('click', function () {
-  if (serverName) refresh().catch(function (e) { showError(e.message); showStatus('down'); });
+  if (serverName || !hasPlan) doRefresh();
   else init();
 });
 
 init();
-setInterval(function () {
-  if (serverName) refresh().catch(function (e) { showError(e.message); showStatus('down'); });
-}, REFRESH_MS);
+setInterval(doRefresh, REFRESH_MS);
 
 /* ── Minecraft admin (console / whitelist / live logs) ── */
 (function () {
+  if (!serverId) return; // init() is redirecting to a server page
+  var mcBase = '/api/servers/' + serverId + '/mc';
   var HISTORY_MAX = 50;
   var CONSOLE_MAX_LINES = 400;
   var LOG_MAX_LINES = 500;
@@ -1073,7 +1219,7 @@ setInterval(function () {
   async function runCommand(cmd) {
     consolePrint('> ' + cmd, 'console-line console-cmd');
     try {
-      var data = await mcFetch('/api/mc/command', { command: cmd });
+      var data = await mcFetch(mcBase + '/command', { command: cmd });
       consolePrint(data.response || '(no output)', 'console-line');
       if (/^\/?whitelist\b/i.test(cmd)) loadWhitelist();
     } catch (err) {
@@ -1127,7 +1273,7 @@ setInterval(function () {
 
   async function loadWhitelist() {
     try {
-      var data = await mcFetch('/api/mc/whitelist');
+      var data = await mcFetch(mcBase + '/whitelist');
       renderWhitelist(data.players);
       setWlStatus(null);
     } catch (err) {
@@ -1146,7 +1292,7 @@ setInterval(function () {
         return;
       }
       try {
-        var data = await mcFetch('/api/mc/whitelist/add', { name: name });
+        var data = await mcFetch(mcBase + '/whitelist/add', { name: name });
         renderWhitelist(data.players);
         setWlStatus(data.result === 'already' ? name + ' is already whitelisted' : null);
         input.value = '';
@@ -1160,7 +1306,7 @@ setInterval(function () {
       var name = btn.dataset.name;
       if (!confirm('Remove ' + name + ' from the whitelist?')) return;
       try {
-        var data = await mcFetch('/api/mc/whitelist/remove', { name: name });
+        var data = await mcFetch(mcBase + '/whitelist/remove', { name: name });
         renderWhitelist(data.players);
         setWlStatus(null);
       } catch (err) {
@@ -1202,7 +1348,7 @@ setInterval(function () {
       if (!logPaused) { logStuckToBottom = true; pane.scrollTop = pane.scrollHeight; }
     });
 
-    mcFetch('/api/mc/logs/recent?lines=200').then(function (data) {
+    mcFetch(mcBase + '/logs/recent?lines=200').then(function (data) {
       pane.innerHTML = '';
       var lines = data.lines || [];
       for (var i = 0; i < lines.length; i++) appendLog(lines[i]);
@@ -1211,7 +1357,7 @@ setInterval(function () {
       setLogStatus(err.message);
     });
 
-    var es = new EventSource('/api/mc/logs/stream');
+    var es = new EventSource(mcBase + '/logs/stream');
     es.addEventListener('line', function (ev) {
       var data;
       try { data = JSON.parse(ev.data); } catch { return; }
@@ -1226,7 +1372,7 @@ setInterval(function () {
     };
   }
 
-  fetch('/api/mc/config')
+  fetch(mcBase + '/config')
     .then(function (r) { return r.ok ? r.json() : null; })
     .then(function (cfg) {
       if (!cfg || !cfg.console) return;

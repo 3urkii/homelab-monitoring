@@ -103,29 +103,74 @@ module.exports = {
   //   unit: "fahrenheit",   // "celsius" | "fahrenheit"
   // },
 
-  // Plan Player Analytics integration — adds a Minecraft analytics page.
-  // Set machine/guest to the VM or LXC running the Minecraft server.
-  plan: {
-    url: 'http://REPLACE_ME:8804',  // e.g. "http://10.0.20.87:8804"
-    machine: 'REPLACE_ME',   // machines[].name of the Proxmox host
-    guest: 'REPLACE_ME',     // guest name of the Minecraft VM/LXC
-  },
-
-  // Minecraft admin — adds console / whitelist / live-log sections to the /plan page.
-  // Requires the `plan` block above. Enable RCON in server.properties first:
-  //   enable-rcon=true
-  //   rcon.port=25575
-  //   rcon.password=<long random string>
-  // logAgent is optional: run tools/mc-log-agent on the Minecraft host (see its README)
-  // to get the live-log section. Omit it to skip logs.
-  // commandAllowlist (optional) REPLACES the default allowed console first-words:
-  //   whitelist, list, say, msg, tell, kick, tps, seed, banlist, difficulty, time, weather, save-all
-  // Never add op, stop, ban, gamemode, or execute — see SECURITY.md.
-  // minecraft: {
-  //   rcon: { host: "REPLACE_ME", port: 25575, password: "REPLACE_ME" },
-  //   logAgent: { url: "http://REPLACE_ME:8127" },
-  //   // commandAllowlist: ["whitelist", "list", "say", "tps"],
-  // },
+  // Minecraft servers — each entry gets its own analytics + admin page at
+  // /plan/<id> (charts, RCON console, whitelist manager, live logs). Any
+  // number of servers is supported; they render as tabs on each /plan page
+  // and as per-server "<label> analytics →" links on the matching guest rows
+  // of /monitoring.
+  //
+  // Per entry:
+  // - id      — URL-safe slug (lowercase letters, digits, '_', '-'), unique;
+  //             becomes the route path: /plan/<id>
+  // - label   — display name shown in the UI
+  // - machine — optional; machines[].name of the Proxmox host running this
+  //             server. With `guest`, links the page to its /monitoring row.
+  // - guest   — optional; guest name of the Minecraft VM/LXC
+  // - plan    — optional. Plan Player Analytics web-server URL, for the full
+  //             analytics page (playerbase, players table, world metrics).
+  //             Plan runs on Paper/Spigot/Folia, Fabric, and Sponge — there
+  //             is NO native Forge build, so omit `plan` for Forge packs.
+  // - minecraft — optional admin block (console/whitelist/logs on the page):
+  //     rcon: enable in server.properties (enable-rcon, rcon.port, rcon.password).
+  //           Servers sharing a host need distinct RCON ports.
+  //     logAgent: optional; run one tools/mc-log-agent instance per server on
+  //           the Minecraft host (distinct ports), see its README.
+  //     commandAllowlist: optional; REPLACES the default allowed console
+  //           first-words (whitelist, list, say, msg, tell, kick, tps, seed,
+  //           banlist, difficulty, time, weather, save-all). Never add op,
+  //           stop, ban, gamemode, or execute — see SECURITY.md.
+  //     sampler: charts fallback for servers without `plan`. When an entry
+  //           has rcon but no plan, the dashboard polls `list` and
+  //           `forge tps`/`tps` over RCON every 30s and charts players
+  //           online + TPS + tick time. On by default in that case; set
+  //           `sampler: false` to disable, or tune with
+  //           `sampler: { intervalMs: 30000, tpsCommand: "forge tps" }`
+  //           (tpsCommand is auto-detected when omitted).
+  //
+  // Each entry needs `plan` and/or `minecraft`.
+  //
+  // Legacy note: the old top-level `plan:` + `minecraft:` blocks still work —
+  // they auto-migrate at startup to a one-element servers array with
+  // id "default" (page at /plan/default).
+  servers: [
+    {
+      id: 'vanilla',
+      label: 'Vanilla SMP',
+      machine: 'REPLACE_ME',   // machines[].name of the Proxmox host
+      guest: 'REPLACE_ME',     // guest name of the Minecraft VM/LXC
+      plan: {
+        url: 'http://REPLACE_ME:8804',  // e.g. "http://10.0.20.87:8804"
+      },
+      // minecraft: {
+      //   rcon: { host: "REPLACE_ME", port: 25575, password: "REPLACE_ME" },
+      //   logAgent: { url: "http://REPLACE_ME:8127" },
+      //   // commandAllowlist: ["whitelist", "list", "say", "tps"],
+      // },
+    },
+    // A Forge modded server (e.g. Soulrend): no Plan — the RCON sampler
+    // provides the players/TPS/tick-time charts instead.
+    // {
+    //   id: 'soulrend',
+    //   label: 'Soulrend',
+    //   machine: 'REPLACE_ME',
+    //   guest: 'REPLACE_ME',
+    //   minecraft: {
+    //     rcon: { host: "REPLACE_ME", port: 25576, password: "REPLACE_ME" },
+    //     logAgent: { url: "http://REPLACE_ME:8128" },
+    //     commandAllowlist: ["whitelist", "list", "say", "tps", "forge"],
+    //   },
+    // },
+  ],
 
   // Network tile on the landing page — clickable card that deep-links to the
   // UniFi mobile app on iOS/Android, falling back to the controller URL on desktop.

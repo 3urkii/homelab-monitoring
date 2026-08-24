@@ -10,7 +10,8 @@ const { HAClient, pctToBrightness } = require('./lib/home_assistant.js');
 const { validateTvConfig, trackedEntitiesFromTv, resolveShortcut, buildTvSnapshot } = require('./lib/tv.js');
 const { validateTrainerConfig, buildSystemPrompt, parseTrainerReply, validateMessages, TRAINER_SCHEMA, OllamaClient } = require('./lib/spanish_trainer.js');
 const { SseBroker } = require('./lib/sse_broker.js');
-const { validateMinecraftConfig, checkCommand, isValidUsername, stripColorCodes, parseWhitelistList, classifyWhitelistResponse, DEFAULT_COMMAND_ALLOWLIST, McLogRelay } = require('./lib/minecraft.js');
+const { normalizeServersConfig, validateServersConfig, checkCommand, isValidUsername, stripColorCodes, parseWhitelistList, classifyWhitelistResponse, DEFAULT_COMMAND_ALLOWLIST, McLogRelay } = require('./lib/minecraft.js');
+const { McSampler } = require('./lib/mc_sampler.js');
 const { rconExec } = require('./lib/rcon.js');
 
 const ROLLUP_INTERVAL_MS = 5 * 60 * 1000; // every 5 minutes
@@ -20,10 +21,19 @@ const RANGE_PRESETS = {
   '7d':  7  * 24 * 60 * 60 * 1000,
   '30d': 30 * 24 * 60 * 60 * 1000,
 };
+// Bucket sizes for RCON-sampler history so long ranges stay a bounded number
+// of points; short ranges return raw ~30s samples.
+const SAMPLER_BUCKET_MS = {
+  '1h':  0,
+  '24h': 0,
+  '7d':  5 * 60 * 1000,
+  '30d': 20 * 60 * 1000,
+};
 
 function validateConfig(cfg) {
   const errors = [];
   if (!cfg || typeof cfg !== 'object') errors.push('config.js must export an object');
+  normalizeServersConfig(cfg);
   if (!cfg.server || typeof cfg.server.port !== 'number') errors.push('server.port must be a number');
   if (!Array.isArray(cfg.machines) || cfg.machines.length === 0) errors.push('machines must be a non-empty array');
   const machineNames = new Set();
@@ -63,16 +73,17 @@ function validateConfig(cfg) {
       if (!o.machine || !machineNames.has(o.machine)) errors.push(`alerts.overrides[${i}].machine '${o.machine}' not in machines`);
     }
   }
-  if (cfg.plan !== undefined) {
-    if (!cfg.plan || typeof cfg.plan !== 'object') {
-      errors.push('plan must be an object');
-    } else {
-      if (!cfg.plan.url || typeof cfg.plan.url !== 'string' || cfg.plan.url.includes('REPLACE_ME')) {
-        errors.push('plan.url must be a non-empty URL');
-      }
-      if (!cfg.plan.machine || cfg.plan.machine === 'REPLACE_ME') errors.push('plan.machine is required');
-      if (!cfg.plan.guest || cfg.plan.guest === 'REPLACE_ME') errors.push('plan.guest is required');
+  if (cfg?.servers !== undefined) {
+    if (cfg.plan !== undefined || cfg.minecraft !== undefined) {
+      errors.push('top-level plan/minecraft blocks cannot be combined with servers[] — move them into a servers entry');
     }
+    for (const e of validateServersConfig(cfg.servers)) errors.push(e);
+  } else if (cfg?.plan !== undefined) {
+    // normalizeServersConfig migrates any legacy plan object, so reaching here
+    // means plan is not an object at all.
+    errors.push('plan must be an object');
+  } else if (cfg?.minecraft !== undefined) {
+    errors.push('minecraft requires plan (the admin UI lives on /plan)');
   }
   if (cfg.network !== undefined) {
     const n = cfg.network;
@@ -136,10 +147,6 @@ function validateConfig(cfg) {
     const trainerErrors = validateTrainerConfig(cfg.spanishTrainer);
     for (const e of trainerErrors) errors.push(e);
   }
-  if (cfg.minecraft !== undefined) {
-    const mcErrors = validateMinecraftConfig(cfg.minecraft, !!cfg.plan);
-    for (const e of mcErrors) errors.push(e);
-  }
   if (errors.length) {
     throw new Error('config.js validation failed:\n  - ' + errors.join('\n  - '));
   }
@@ -168,6 +175,7 @@ function main() {
     try {
       storage.rollup();
       storage.pruneAlertEvents();
+      storage.pruneMcSamples();
     } catch (err) {
       console.error(`[storage] rollup failed: ${err.message}`);
     }
@@ -549,15 +557,74 @@ function main() {
     });
   }
 
-  if (config.plan) {
-    app.get('/plan', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'plan.html')));
+  if (config.servers?.length) {
+    // Registry: one entry per configured Minecraft server, each with its own
+    // log relay + SSE broker. RCON queues are per host:port inside lib/rcon.
+    // Servers without Plan but with RCON get an McSampler for chart data
+    // (players online + TPS), unless minecraft.sampler is false.
+    const serverEntries = new Map();
+    for (const s of config.servers) {
+      const entry = {
+        id: s.id,
+        label: s.label || s.id,
+        plan: s.plan || null,
+        mc: s.minecraft || null,
+        allowlist: s.minecraft?.commandAllowlist || DEFAULT_COMMAND_ALLOWLIST,
+        logAgentUrl: null,
+        logBroker: null,
+        logRelay: null,
+        sampler: null,
+      };
+      if (entry.mc?.logAgent) {
+        entry.logAgentUrl = entry.mc.logAgent.url.replace(/\/$/, '');
+        entry.logBroker = new SseBroker();
+        entry.logRelay = new McLogRelay({ url: entry.logAgentUrl, broker: entry.logBroker });
+        entry.logRelay.start();
+      }
+      if (!entry.plan && entry.mc?.rcon && entry.mc.sampler !== false) {
+        entry.sampler = new McSampler({
+          serverId: entry.id,
+          rcon: entry.mc.rcon,
+          storage,
+          intervalMs: entry.mc.sampler?.intervalMs,
+          tpsCommand: entry.mc.sampler?.tpsCommand,
+        });
+        entry.sampler.start();
+      }
+      serverEntries.set(s.id, entry);
+    }
+    const firstServerId = config.servers[0].id;
 
-    app.get('/api/plan-config', (_req, res) => {
-      res.json({ machine: config.plan.machine, guest: config.plan.guest });
+    app.get('/plan', (_req, res) => res.redirect(`/plan/${firstServerId}`));
+    app.get('/plan/:serverId', (req, res) => {
+      if (!serverEntries.has(req.params.serverId)) return res.status(404).send('unknown server');
+      res.sendFile(path.join(__dirname, 'public', 'plan.html'));
     });
 
-    app.use('/api/plan', async (req, res) => {
-      const target = new URL(req.path, config.plan.url);
+    app.get('/api/servers', (_req, res) => {
+      res.json(config.servers.map((s) => ({
+        id: s.id,
+        label: s.label || s.id,
+        machine: s.machine || null,
+        guest: s.guest || null,
+        hasPlan: !!s.plan,
+        hasMc: !!s.minecraft,
+      })));
+    });
+
+    const withServer = (handler) => (req, res) => {
+      const entry = serverEntries.get(req.params.serverId);
+      if (!entry) return res.status(404).json({ error: 'unknown server' });
+      return handler(entry, req, res);
+    };
+    const withMc = (handler) => withServer((entry, req, res) => {
+      if (!entry.mc) return res.status(404).json({ error: 'minecraft admin not configured for this server' });
+      return handler(entry, req, res);
+    });
+
+    app.use('/api/servers/:serverId/plan', withServer(async (entry, req, res) => {
+      if (!entry.plan) return res.status(404).json({ error: 'plan not configured for this server' });
+      const target = new URL(req.path, entry.plan.url);
       for (const [k, v] of Object.entries(req.query)) target.searchParams.set(k, v);
       try {
         const resp = await globalThis.fetch(target.toString(), { signal: AbortSignal.timeout(10_000) });
@@ -570,56 +637,51 @@ function main() {
       } catch (err) {
         res.status(502).json({ error: `Plan API: ${err.message}` });
       }
-    });
-  }
-
-  if (config.minecraft) {
-    const mc = config.minecraft;
-    const allowlist = mc.commandAllowlist || DEFAULT_COMMAND_ALLOWLIST;
+    }));
 
     const rconErrorStatus = (err) =>
       err.code === 'rcon_unreachable' || err.code === 'rcon_auth_failed' ? 503 : 502;
     const rconErrorMessage = (err) => {
-      if (err.code === 'rcon_auth_failed') return 'rcon auth failed — check minecraft.rcon.password';
+      if (err.code === 'rcon_auth_failed') return 'rcon auth failed — check the server\'s rcon.password';
       if (err.code === 'rcon_unreachable') return 'minecraft rcon unreachable — is the server up?';
       return `rcon: ${err.message}`;
     };
 
-    app.get('/api/mc/config', (_req, res) => {
-      res.json({ console: true, whitelist: true, logs: !!mc.logAgent, allowlist });
-    });
+    app.get('/api/servers/:serverId/mc/config', withMc((entry, _req, res) => {
+      res.json({ console: true, whitelist: true, logs: !!entry.mc.logAgent, allowlist: entry.allowlist });
+    }));
 
-    app.post('/api/mc/command', async (req, res) => {
+    app.post('/api/servers/:serverId/mc/command', withMc(async (entry, req, res) => {
       const body = req.body || {};
       const allowed = new Set(['command']);
       for (const k of Object.keys(body)) {
         if (!allowed.has(k)) return res.status(400).json({ error: `unknown field: ${k}` });
       }
-      const check = checkCommand(body.command, allowlist);
+      const check = checkCommand(body.command, entry.allowlist);
       if (!check.ok) return res.status(400).json({ error: check.error });
       try {
-        const response = await rconExec(mc.rcon, check.command);
+        const response = await rconExec(entry.mc.rcon, check.command);
         res.json({ command: check.command, response: stripColorCodes(response) });
       } catch (err) {
         res.status(rconErrorStatus(err)).json({ error: rconErrorMessage(err) });
       }
-    });
+    }));
 
-    async function fetchWhitelist() {
-      const response = await rconExec(mc.rcon, 'whitelist list');
+    async function fetchWhitelist(entry) {
+      const response = await rconExec(entry.mc.rcon, 'whitelist list');
       return parseWhitelistList(response);
     }
 
-    app.get('/api/mc/whitelist', async (_req, res) => {
+    app.get('/api/servers/:serverId/mc/whitelist', withMc(async (entry, _req, res) => {
       try {
-        res.json({ players: await fetchWhitelist() });
+        res.json({ players: await fetchWhitelist(entry) });
       } catch (err) {
         res.status(rconErrorStatus(err)).json({ error: rconErrorMessage(err) });
       }
-    });
+    }));
 
     for (const action of ['add', 'remove']) {
-      app.post(`/api/mc/whitelist/${action}`, async (req, res) => {
+      app.post(`/api/servers/:serverId/mc/whitelist/${action}`, withMc(async (entry, req, res) => {
         const body = req.body || {};
         const allowed = new Set(['name']);
         for (const k of Object.keys(body)) {
@@ -629,40 +691,58 @@ function main() {
           return res.status(400).json({ error: 'name must match ^[A-Za-z0-9_]{3,16}$' });
         }
         try {
-          const response = stripColorCodes(await rconExec(mc.rcon, `whitelist ${action} ${body.name}`));
+          const response = stripColorCodes(await rconExec(entry.mc.rcon, `whitelist ${action} ${body.name}`));
           const result = classifyWhitelistResponse(response);
-          const players = await fetchWhitelist();
+          const players = await fetchWhitelist(entry);
           res.json({ ok: true, result, response, players });
         } catch (err) {
           res.status(rconErrorStatus(err)).json({ error: rconErrorMessage(err) });
         }
-      });
+      }));
     }
 
-    if (mc.logAgent) {
-      const agentUrl = mc.logAgent.url.replace(/\/$/, '');
-      const mcLogBroker = new SseBroker();
-      const mcLogRelay = new McLogRelay({ url: agentUrl, broker: mcLogBroker });
-      mcLogRelay.start();
+    app.get('/api/servers/:serverId/mc/logs/recent', withMc(async (entry, req, res) => {
+      if (!entry.logAgentUrl) return res.status(404).json({ error: 'log agent not configured for this server' });
+      const lines = Math.max(1, Math.min(1000, Number(req.query.lines) || 200));
+      try {
+        const resp = await globalThis.fetch(`${entry.logAgentUrl}/recent?lines=${lines}`, { signal: AbortSignal.timeout(5000) });
+        if (!resp.ok) return res.status(502).json({ error: `log agent HTTP ${resp.status}` });
+        res.json(await resp.json());
+      } catch (err) {
+        res.status(503).json({ error: `log agent unreachable: ${err.message}` });
+      }
+    }));
 
-      app.get('/api/mc/logs/recent', async (req, res) => {
-        const lines = Math.max(1, Math.min(1000, Number(req.query.lines) || 200));
-        try {
-          const resp = await globalThis.fetch(`${agentUrl}/recent?lines=${lines}`, { signal: AbortSignal.timeout(5000) });
-          if (!resp.ok) return res.status(502).json({ error: `log agent HTTP ${resp.status}` });
-          res.json(await resp.json());
-        } catch (err) {
-          res.status(503).json({ error: `log agent unreachable: ${err.message}` });
-        }
-      });
+    app.get('/api/servers/:serverId/mc/logs/stream', withMc((entry, _req, res) => {
+      if (!entry.logBroker) return res.status(404).json({ error: 'log agent not configured for this server' });
+      entry.logBroker.addClient(res);
+      if (!entry.logRelay.isConnected()) {
+        res.write(`event: offline\ndata: ${JSON.stringify({ connected: false })}\n\n`);
+      }
+    }));
 
-      app.get('/api/mc/logs/stream', (_req, res) => {
-        mcLogBroker.addClient(res);
-        if (!mcLogRelay.isConnected()) {
-          res.write(`event: offline\ndata: ${JSON.stringify({ connected: false })}\n\n`);
-        }
-      });
-    }
+    app.get('/api/servers/:serverId/mc/stats/now', withMc((entry, _req, res) => {
+      if (!entry.sampler) return res.status(404).json({ error: 'sampler not enabled for this server' });
+      res.json(entry.sampler.status());
+    }));
+
+    app.get('/api/servers/:serverId/mc/stats/history', withMc((entry, req, res) => {
+      if (!entry.sampler) return res.status(404).json({ error: 'sampler not enabled for this server' });
+      try {
+        const range = RANGE_PRESETS[req.query.range] ? req.query.range : '24h';
+        const toTs = Date.now();
+        const fromTs = toTs - RANGE_PRESETS[range];
+        const values = storage.queryMcSamples({
+          serverId: entry.id,
+          fromTs,
+          toTs,
+          bucketMs: SAMPLER_BUCKET_MS[range],
+        });
+        res.json({ serverId: entry.id, range, fromTs, toTs, keys: ['date', 'playersOnline', 'tps', 'tickMs'], values });
+      } catch (err) {
+        res.status(500).json({ error: err.message });
+      }
+    }));
   }
 
   if (config.weather) {
