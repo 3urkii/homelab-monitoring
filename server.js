@@ -13,6 +13,7 @@ const { SseBroker } = require('./lib/sse_broker.js');
 const { normalizeServersConfig, validateServersConfig, checkCommand, isValidUsername, stripColorCodes, parseWhitelistList, classifyWhitelistResponse, DEFAULT_COMMAND_ALLOWLIST, McLogRelay } = require('./lib/minecraft.js');
 const { McSampler } = require('./lib/mc_sampler.js');
 const { rconExec } = require('./lib/rcon.js');
+const { validateCameraConfig, resolveCameraConfig, CameraStream } = require('./lib/camera.js');
 
 const ROLLUP_INTERVAL_MS = 5 * 60 * 1000; // every 5 minutes
 const RANGE_PRESETS = {
@@ -143,6 +144,9 @@ function validateConfig(cfg) {
     const tvErrors = validateTvConfig(cfg.tv, !!cfg.homeAssistant);
     for (const e of tvErrors) errors.push(e);
   }
+  if (cfg.camera !== undefined) {
+    for (const e of validateCameraConfig(cfg.camera)) errors.push(e);
+  }
   if (cfg.spanishTrainer !== undefined) {
     const trainerErrors = validateTrainerConfig(cfg.spanishTrainer);
     for (const e of trainerErrors) errors.push(e);
@@ -239,8 +243,23 @@ function main() {
             })),
           }
         : null,
+      camera: config.camera
+        ? { available: true, label: resolveCameraConfig(config.camera).label }
+        : null,
     });
   });
+
+  if (config.camera) {
+    const camera = new CameraStream(config.camera);
+    camera.on('error-status', (msg) => console.error(`[camera] ${msg}`));
+    // MJPEG stream: render with <img src="/api/camera/stream">. ffmpeg only
+    // runs while at least one viewer is connected; nothing is recorded.
+    app.get('/api/camera/stream', (req, res) => {
+      req.socket.setNoDelay(true);
+      camera.addClient(res);
+    });
+    app.get('/api/camera/status', (_req, res) => res.json(camera.status()));
+  }
 
   app.get('/api/history', (req, res) => {
     try {

@@ -216,6 +216,7 @@ footer .prompt { color: var(--green); margin-right: 0.5ch; }
 <script src="/theme.js" defer></script>
 <script src="/weather.js" defer></script>
 <script src="/tv.js" defer></script>
+<script src="/camera.js" defer></script>
 </head>
 <body>
 <div class="page-chrome">
@@ -234,6 +235,12 @@ footer .prompt { color: var(--green); margin-right: 0.5ch; }
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M3 5h18a1 1 0 011 1v11a1 1 0 01-1 1H3a1 1 0 01-1-1V6a1 1 0 011-1zm5 15h8v2H8v-2z"/></svg>
       </span>
       <span class="sr-only" style="position:absolute;left:-9999px;">tv remote</span>
+    </button>
+    <button class="tv-chip cam-chip" id="camChip" type="button" aria-haspopup="dialog" aria-expanded="false" aria-controls="camFeed" hidden>
+      <span class="tv-icon" aria-hidden="true">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M4 6h11a2 2 0 012 2v1.5l3.4-2.3A1 1 0 0122 8v8a1 1 0 01-1.6.8L17 14.5V16a2 2 0 01-2 2H4a2 2 0 01-2-2V8a2 2 0 012-2z"/></svg>
+      </span>
+      <span class="sr-only" style="position:absolute;left:-9999px;">camera feed</span>
     </button>
     <div class="clock"><span class="prompt">$</span><span data-clock-h>--</span><span class="colon">:</span><span data-clock-m>--</span></div>
     <span data-theme-mount></span>
@@ -325,6 +332,21 @@ footer .prompt { color: var(--green); margin-right: 0.5ch; }
     </div>
   </section>
 </main>
+<dialog class="tv-remote-sheet cam-sheet" id="camFeed" aria-label="camera feed">
+  <div class="sheet-glow" aria-hidden="true"></div>
+  <div class="sheet-inner">
+    <div class="sheet-head">
+      <span class="sheet-section-label"><span class="accent">&gt;</span><span data-cam-label>camera</span><span class="cam-live" aria-hidden="true">live</span></span>
+      <button class="sheet-close" data-cam-close type="button" aria-label="close">×</button>
+    </div>
+    <div class="cam-frame" data-cam-frame>
+      <div class="cam-status" data-cam-status>
+        <span data-cam-status-text>connecting…</span>
+        <button class="cam-retry" data-cam-retry type="button" hidden>retry</button>
+      </div>
+    </div>
+  </div>
+</dialog>
 <dialog class="tv-remote-sheet" id="tvRemote" aria-label="tv remote">
   <div class="sheet-glow" aria-hidden="true"></div>
   <div class="sheet-inner">

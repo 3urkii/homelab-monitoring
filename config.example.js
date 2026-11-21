@@ -75,6 +75,25 @@ module.exports = {
   //   ],
   // },
 
+  // Camera feed — adds a camera-icon button next to the tv button on / and
+  // /lights that opens a live view of a webcam. View-only: nothing is recorded.
+  // Needs ffmpeg in the dashboard LXC (`apt install ffmpeg`) and the webcam
+  // passed through from the Proxmox host — see "Camera feed" in README.md and
+  // tools/camera-passthrough/setup-lxc-camera.sh. All fields optional.
+  // - device:      V4L2 device node inside the LXC (default "/dev/video0")
+  // - label:       title on the viewer (default "camera")
+  // - width:       max output width in px; never upscales (default 1280)
+  // - fps:         frames per second sent to browsers, 1–30 (default 10)
+  // - quality:     JPEG quality, 2 (best) – 31 (worst) (default 7)
+  // - inputFormat: ask the camera for a specific format, e.g. "mjpeg" — most
+  //                USB webcams only reach 720p/1080p at decent fps in MJPEG
+  //                (list with: v4l2-ctl -d /dev/video0 --list-formats-ext)
+  // camera: {
+  //   device: "/dev/video0",
+  //   label: "living room",
+  //   inputFormat: "mjpeg",
+  // },
+
   // Spanish trainer — adds an "ES" button to /chat linking to /espanol, a B1–B2
   // Spanish conversation tutor. Talks directly to your Ollama server (the same one
   // Home Assistant uses, on its own machine) with a tutor system prompt — independent

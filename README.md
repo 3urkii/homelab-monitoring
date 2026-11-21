@@ -173,6 +173,49 @@ Restart the dashboard. A `lights` link appears in the header; `/lights` is also 
 
 Set `config.tv` (requires `homeAssistant`) to mount a TV-remote button in the top bar of `/` and `/lights`. The remote drives `media_player.*` entities — power, volume, mute, and a configurable 2×2 grid of one-tap source shortcuts (HDMI inputs, apps). See `config.example.js` for the schema.
 
+### Camera feed
+
+Set `config.camera` to add a camera button next to the TV button on `/` and `/lights`. Tapping it opens a live view of a webcam plugged into the Proxmox host. It is view-only: no recording, nothing written to disk.
+
+**How it works:** `GET /api/camera/stream` serves an MJPEG stream (`multipart/x-mixed-replace`) that a plain `<img>` renders, so it works in every browser including iOS Safari. One `ffmpeg` process reads the V4L2 device and fans frames out to all viewers. It starts when the first viewer opens the feed and stops 5 s after the last one closes it, so the camera sits idle otherwise. If ffmpeg fails (device missing, permission denied, camera unplugged), the viewer shows the error and a retry button. `GET /api/camera/status` returns `{ running, viewers, lastError }`.
+
+**1. Pass the webcam into the dashboard LXC** (on the Proxmox host, as root):
+
+```bash
+ls -l /dev/video*                 # a webcam usually makes 2 nodes; the first (video0) is the picture,
+v4l2-ctl --list-devices           #   the second is metadata (apt install v4l-utils for v4l2-ctl)
+./tools/camera-passthrough/setup-lxc-camera.sh <ctid> /dev/video0
+pct reboot <ctid>
+```
+
+On Proxmox VE 8.1+ the script adds a native device passthrough entry, which is the same as **Container → Resources → Add → Device Passthrough** in the UI with path `/dev/video0` and GID in CT `44`. It works for unprivileged containers. On older versions it appends the raw `lxc.cgroup2.devices.allow: c 81:* rwm` + `lxc.mount.entry` lines instead.
+
+If you have more than one video device, the `/dev/videoN` numbering can change between host reboots. Check `ls -l /dev/v4l/by-id/` to see which node is your webcam.
+
+**2. Inside the LXC:**
+
+```bash
+apt install ffmpeg
+ls -l /dev/video0                         # should be crw-rw---- root video
+usermod -aG video dashboard               # the service user needs the video group
+sudo cp homelab-dashboard.service /etc/systemd/system/   # now includes SupplementaryGroups=video
+systemctl daemon-reload && systemctl restart homelab-dashboard
+```
+
+Quick test without the dashboard: `sudo -u dashboard ffmpeg -f v4l2 -i /dev/video0 -frames:v 1 /tmp/test.jpg`.
+
+**3. Configure** (see `config.example.js`; every field is optional):
+
+```js
+camera: {
+  device: "/dev/video0",
+  label: "living room",
+  inputFormat: "mjpeg",   // most USB webcams only reach 720p+ at a usable fps in MJPEG
+},
+```
+
+Other knobs: `width` (max output width, default 1280), `fps` (default 10), `quality` (JPEG q 2–31, default 7). Bandwidth is roughly 50–150 KB per frame at 720p, so about 0.5–1.5 MB/s per viewer at 10 fps. Lower `fps`/`width` if it's choppy on Wi-Fi. `npm run dev` shows the viewer with an ffmpeg test pattern in place of a real camera.
+
 ### Spanish trainer
 
 Set `config.spanishTrainer` to mount a B1–B2 Spanish conversation tutor at `/espanol`. An "ES" button appears on `/chat` only when the block is present; remove it to hide the page entirely.

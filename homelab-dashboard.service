@@ -14,6 +14,8 @@ RestartSec=5
 StandardOutput=journal
 StandardError=journal
 Environment=NODE_ENV=production
+# Read access to /dev/video* for the optional camera feed (config.camera).
+SupplementaryGroups=video
 
 # Hardening (safe defaults for a read-only dashboard)
 NoNewPrivileges=true
