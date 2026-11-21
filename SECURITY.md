@@ -51,6 +51,10 @@ plaintext admin panel.
 - `GET /api/servers/:id/mc/stats/{now,history}` — player counts, TPS, and
   tick times sampled over RCON for servers without Plan. The sampler only
   ever runs the read-only `list` and `forge tps`/`tps` commands.
+- `GET /api/camera/stream` + `GET /api/camera/status` — the live webcam feed
+  (if `camera` is configured). Anyone who can reach the dashboard can watch
+  the camera. Nothing is recorded, but treat this as the most sensitive
+  endpoint if the port is ever exposed beyond the LAN.
 - `GET /api/weather` — proxies Open-Meteo (public, no auth).
 
 ## Hardening checklist

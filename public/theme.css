@@ -835,3 +835,72 @@ html:has(.tv-remote-sheet[open]) { overflow: hidden; }
   .tv-shortcut[aria-current="true"] { box-shadow: none; }
   .tv-err { animation: none; }
 }
+
+/* ============================================================
+   Camera feed (top-bar chip + <dialog> sheet, MJPEG <img>)
+   Pages: index.html, lights.html — reuses .tv-chip / .tv-remote-sheet
+   ============================================================ */
+
+.cam-sheet { width: 720px; }
+.cam-sheet .cam-live {
+  display: none;
+  margin-left: 0.8ch;
+  color: var(--red);
+}
+.cam-sheet .cam-live::before {
+  content: "";
+  display: inline-block;
+  width: 6px; height: 6px;
+  margin-right: 0.5ch;
+  border-radius: 50%;
+  background: var(--red);
+  vertical-align: middle;
+  animation: cam-pulse 1.6s ease-in-out infinite;
+}
+.cam-sheet[data-live="true"] .cam-live { display: inline; }
+
+.cam-frame {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  border: 1px solid var(--current-line);
+  border-radius: 6px;
+  background: #000;
+  overflow: hidden;
+}
+.cam-frame .cam-img {
+  position: absolute; inset: 0;
+  width: 100%; height: 100%;
+  object-fit: contain;
+}
+.cam-status {
+  position: absolute; inset: 0;
+  z-index: 1;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 0.6rem;
+  padding: 1rem;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.72rem;
+  color: var(--comment);
+  text-align: center;
+}
+.cam-status[hidden] { display: none; }
+.cam-status[data-error="true"] { color: var(--red); }
+.cam-retry {
+  border: 1px solid var(--current-line);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--fg);
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.75rem;
+  padding: 0.35rem 0.9rem;
+  cursor: pointer;
+}
+.cam-retry[hidden] { display: none; }
+@media (hover: hover) and (pointer: fine) {
+  .cam-retry:hover { border-color: var(--pink); color: var(--pink); }
+}
+@keyframes cam-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+@media (prefers-reduced-motion: reduce) {
+  .cam-sheet .cam-live::before { animation: none; }
+}

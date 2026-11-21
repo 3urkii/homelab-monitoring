@@ -5,6 +5,8 @@ const { Poller } = require('./lib/poller.js');
 const { Storage, METRIC_COLUMNS } = require('./lib/storage.js');
 const { SseBroker } = require('./lib/sse_broker.js');
 const { checkCommand, isValidUsername, DEFAULT_COMMAND_ALLOWLIST } = require('./lib/minecraft.js');
+const { CameraStream } = require('./lib/camera.js');
+const { spawn } = require('node:child_process');
 
 const RANGE_PRESETS = {
   '1h':  60 * 60 * 1000,
@@ -673,6 +675,24 @@ app.get('/api/lights/stream', (_req, res) => {
   lightsBroker.addClient(res);
   res.write(`event: snapshot\ndata: ${JSON.stringify(lightsState)}\n\n`);
 });
+
+// Mock camera: an ffmpeg test pattern stands in for /dev/video0 (needs ffmpeg
+// on PATH). Same CameraStream as production, only the input is swapped.
+const devCamera = new CameraStream({ label: 'living room' }, {
+  spawn: (cmd, _args, opts) => spawn(cmd, [
+    '-hide_banner', '-loglevel', 'error', '-nostdin', '-re',
+    '-f', 'lavfi', '-i', 'testsrc2=size=1280x720:rate=10',
+    '-c:v', 'mjpeg', '-q:v', '7', '-f', 'mjpeg', 'pipe:1',
+  ], opts),
+});
+devCamera.on('error-status', (m) => console.error(`[dev camera] ${m}`));
+app.get('/api/landing-config', (_req, res) => res.json({
+  network: null,
+  tv: null,
+  camera: { available: true, label: 'living room' },
+}));
+app.get('/api/camera/stream', (_req, res) => devCamera.addClient(res));
+app.get('/api/camera/status', (_req, res) => res.json(devCamera.status()));
 
 app.use(express.static(path.join(__dirname, 'public')));
 
